@@ -105,7 +105,7 @@ cat << EOF >> /root/keystonerc_admin
 export OS_USERNAME=admin
 export OS_TENANT_NAME=admin
 export OS_PASSWORD=${admin_pw}
-export OS_AUTH_URL=http://${keystone_ip}:35357/v2.0/
+export OS_AUTH_URL=http://${keystone_ip}:5000/v2.0/
 export PS1='[\u@\h \W(keystone_admin)]\$ '
 EOF
 
@@ -125,6 +125,8 @@ EOF
 #EOF
 
 # Create the services tenant
+unset SERVICE_ENDPOINT
+unset SERVICE_TOKEN
 source ~/keystonerc_admin
 keystone tenant-create --name services --description "Services Tenant"
 
