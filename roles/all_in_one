@@ -1,0 +1,32 @@
+#!/bin/bash
+#####################################################################
+# Name:		all_in_one.sh
+# Description:	This role creates an all in one deployment
+#####################################################################
+
+prerequisites.sh
+mariadb.sh
+rabbitmq.sh # or qpid.sh
+
+keystone.sh
+memcache.sh
+glance.sh
+cinder.sh
+swift.sh
+neutron.sh
+neutron_lbaas.sh
+neutron_fwaas.sh
+neutron_vpnaas.sh
+## on nova_networking.sh
+nova_controller.sh
+horizon.sh
+heat.sh
+mongodb.sh? 
+ceilometer.sh
+sahara.sh
+trove.sh
+nova_compute.sh
+ceilometer_compute.sh
+nagios.sh
+
+

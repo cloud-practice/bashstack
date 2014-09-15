@@ -1,0 +1,418 @@
+# Would be great if we could gen-answer-file customize this file
+## Have it prompt for 2-3 questions to have it remove a lot of the unused 
+## questions.  Like use nova-network or neutron?  HA or non-HA?
+## Reduce some of the unneccessary options based on this.
+## prompt for password or random...  All same or all different?
+## Which storage backends?  
+## And of course a gen-answer-file --all  to give the full list
+
+### NTP servers (comma separated list)
+ntp_servers=0.rhel.pool.ntp.org,1.rhel.pool.ntp.org,2.rhel.pool.ntp.org
+
+### OpenStack control plane configuration
+
+# Services to Install
+install_ceilometer=y
+install_cinder=y
+install_glance=y 
+install_heat=y
+  # Any value in splitting out cfn/cloudwatch?  I say no
+install_horizon=y
+install_nagios=y
+install_neutron=y
+install_nova=y
+install_sahara=y
+install_swift=y
+install_trove=y
+
+# install_compute_node_only?   ## for expanding environment
+# install_block_storage_node_only?  ## for expanding environment
+
+# Messaging (rabbitmq or qpid)
+messagebus=rabbitmq
+#messagebus=qpid
+rabbit_host=172.16.0.198
+rabbit_port=5672
+amqp_auth_user=amqp_user
+amqp_auth_pw=SECRET
+amqp_ssl_cert_pw=SECRET
+
+# OpenStack Service Passwords
+admin_pw=SECRET
+ceilometer_pw=SECRET
+cinder_pw=SECRET
+glance_pw=SECRET
+heat_pw=SECRET
+heat_domain_pw=SECRET
+nagios_pw=SECRET
+neutron_pw=SECRET
+neutron_metadata_pw=SECRET  #### DO WE NEED THIS ONE??? I DIDN'T USE IT!
+nova_pw=SECRET
+sahara_pw=SECRET
+swift_pw=SECRET
+trove_pw=SECRET
+
+
+# OpenStack Database Passwords
+db_root_pw=SECRET
+galera_clustercheck_pw=SECRET
+cinder_db_pw=SECRET
+glance_db_pw=SECRET
+heat_db_pw=SECRET
+horizon_db_pw=SECRET
+keystone_db_pw=SECRET
+nova_db_pw=SECRET
+neutron_db_pw=SECRET
+sahara_db_pw=SECRET
+trove_db_pw=SECRET
+
+# IP Addresses (Note-These will be VIPs if doing HA)
+controller_ip=172.16.0.198
+mariadb_ip=172.16.0.198
+amqp_ip=172.16.0.198
+ceilometer_ip=172.16.0.198
+cinder_ip=172.16.0.198
+glance_ip=172.16.0.198
+heat_ip=172.16.0.198
+horizon_ip=172.16.0.198
+keystone_ip=172.16.0.198
+neutron_ip=172.16.0.198
+nova_ip=172.16.0.198
+sahara_ip=172.16.0.198
+swift_ip=172.16.0.198
+trove_ip=172.16.0.198
+## Internal IPs
+ceilometer_ip_internal=${ceilometer_ip}
+cinder_ip_internal=${cinder_ip}
+glance_ip_internal=${glance_ip}
+heat_ip_internal=${heat_ip}
+horizon_ip_internal=${horizon_ip}
+keystone_ip_internal=${keystone_ip}
+neutron_ip_internal=${neutron_ip}
+nova_ip_internal=${nova_ip}
+sahara_ip_internal=${sahara_ip}
+swift_ip_internal=${swift_ip}
+trove_ip_internal=${trove_ip}
+## Public IPs
+ceilometer_ip_public=${ceilometer_ip}
+cinder_ip_public=${cinder_ip}
+glance_ip_public=${glance_ip}
+heat_ip_public=${heat_ip}
+horizon_ip_public=${horizon_ip}
+keystone_ip_public=${keystone_ip}
+neutron_ip_public=${neutron_ip}
+nova_ip_public=${nova_ip}
+sahara_ip_public=${sahara_ip}
+swift_ip_public=${swift_ip}
+trove_ip_public=${trove_ip}
+## Admin IPs
+ceilometer_ip_admin=${ceilometer_ip}
+cinder_ip_admin=${cinder_ip}
+glance_ip_admin=${glance_ip}
+heat_ip_admin=${heat_ip}
+horizon_ip_admin=${horizon_ip}
+keystone_ip_admin=${keystone_ip}
+neutron_ip_admin=${neutron_ip}
+nova_ip_admin=${nova_ip}
+sahara_ip_admin=${sahara_ip}
+swift_ip_admin=${swift_ip}
+trove_ip_admin=${trove_ip}
+
+# Need to add service IPs and update all config for it (especially DB connections and service endpoints.  Search for 'IP'.  Also search for PASSWORD.  And bind_ip
+
+
+# High Availability Configuration
+use_ha_controller_plane=n
+  # Fencing options (fence_ipmi, fence_cisco_ucs, and fence_xvm)
+use_fencing=n
+fence_agent=
+mariadb_hosts=
+use_galera=n
+amqp_servers=
+controller_hosts="controller1 controller2 controller3"
+networker_hosts="controller1 controller2 controller3"
+haproxy_hosts="controller1 controller2 controller3"
+### Pacemaker cluster
+pcs_cluster_name=rhelosp
+pcs_cluster_pw=SECRET
+##pcs_cluster_pw_encoded=$1$azKoqr2X$NRnKMkeDSJIE2Kp7kGGUl/
+### Glance HA method? iscsi, nfs, etc ? 
+
+### fence_cisco_ucs
+fence_user=
+fence_pw=
+fence_hosts="controller1:10.161.0.34 controller2:10.161.0.35 controller3:10.161.0.36"
+#fencing: { agent: cisco_ucs, login: pacemaker, passwd: 'SECRET', ipaddr: 10.161.0.50, suborg: org-Controller, port: Profile-CT-1-1, ssl: 1, ssl_insecure: 1 }
+#- name: controller2
+#fqdn: controller2.cloud.local
+#addr_pub: 192.168.30.12
+#addr_int: 172.16.0.12
+#fencing: { agent: cisco_ucs, login: pacemaker, passwd: 'SECRET', ipaddr: 10.161.0.50, suborg: org-Controller, port: Profile-CT-1-2, ssl: 1, ssl_insecure: 1 }
+#- name: controller3
+#fqdn: controller3.cloud.local
+#addr_pub: 192.168.30.13
+#addr_int: 172.16.0.13
+#fencing: { agent: cisco_ucs, login: pacemaker, passwd: 'SECRET', ipaddr: 10.161.0.50, suborg: org-Controller, port: Profile-CT-2-1, ssl: 1, ssl_insecure: 1 }
+#
+
+
+
+# Cinder Configuration Options
+cinder_use_ceph=
+cinder_use_netapp=
+cinder_use_emc=
+cinder_use_hp3par=
+cinder_use_nfs=
+cinder_use_lvmblock=
+cinder_use_gluster=
+cinder_use_loopback=
+cinder_multibackend=
+## # NetApp driver parameters
+netapp_login=LOGIN
+netapp_password=SECRET
+netapp_vserver=VSERVER_NAME
+netapp_password=SECRET
+netapp_vserver=netapp.cloud.local
+netapp_server_hostname='10.161.0.220'
+netapp_storage_protocol=iscsi
+netapp_transport_type=https
+### 
+
+# Ephemeral Storage Configuration Options
+use_ceph=
+use_gluster=
+use_nfs=
+
+# Glance Configuration Options 
+### maybe this should just be glance_backend
+glance_use_file=
+glance_use_ceph=
+glance_use_gluster=
+glance_use_swift=
+
+# Include Ceph deployment in this tool??? 
+# Include Gluster deployment in this tool???
+
+# Nova Network Configuration Options
+### ONLY IF NOT USING NEUTRON
+use_nova_network=n
+# build out this section for nova network....  
+
+
+
+# 
+use_neutron=y
+use_neutron_ml2=y
+use_neutron_cisco=n
+use_lbaas=y
+use_vpnaas=y
+use_fwaas=y
+cisco_provider_vlan_auto_create=false
+cisco_provider_vlan_auto_trunk=false
+
+
+
+#controller_nodes:
+#- name: controller1
+#fqdn: controller1.cloud.local
+#addr_pub: 192.168.30.11
+#addr_int: 172.16.0.11
+#fencing: { agent: cisco_ucs, login: pacemaker, passwd: 'SECRET', ipaddr: 10.161.0.50, suborg: org-Controller, port: Profile-CT-1-1, ssl: 1, ssl_insecure: 1 }
+#- name: controller2
+#fqdn: controller2.cloud.local
+#addr_pub: 192.168.30.12
+#addr_int: 172.16.0.12
+#fencing: { agent: cisco_ucs, login: pacemaker, passwd: 'SECRET', ipaddr: 10.161.0.50, suborg: org-Controller, port: Profile-CT-1-2, ssl: 1, ssl_insecure: 1 }
+#- name: controller3
+#fqdn: controller3.cloud.local
+#addr_pub: 192.168.30.13
+#addr_int: 172.16.0.13
+#fencing: { agent: cisco_ucs, login: pacemaker, passwd: 'SECRET', ipaddr: 10.161.0.50, suborg: org-Controller, port: Profile-CT-2-1, ssl: 1, ssl_insecure: 1 }
+#### Database
+#lb_db_vip: 172.16.0.201
+## Galera cluster parameters
+#wsrep_cluster_name: galera_cluster
+#wsrep_cluster_address: "gcomm://controller1,controller2,controller3"
+#
+#### memcache servers
+#memcached_servers:
+#- '172.16.0.11:11211'
+#- '172.16.0.12:11211'
+#- '172.16.0.13:11211'
+#
+#### Keystone Admin Token (Leave Blank to randomly generate)
+## generated by 'openssl rand -hex 10'
+#keystone_admin_token=""
+#
+#### Nova
+## nova network specific
+#nova_vlan_start: 74
+#nova_vlan_interface: "{{ private_if }}"
+## storage related
+##nova_libvirt_images_type: rbd
+## ceilometer related
+#nova_notify_on_state_change: vm_and_task_state
+#### Glance
+##default_store: rbd
+##rbd_secret_uuid: 457eb676-33da-42ec-9a8c-9293d545c337
+#default_store: file
+#### HAproxy parameters
+## pacemaker IPaddr2 resources for HAproxy
+#vip_addresses:
+#- name: vip-msg
+#addr: 172.16.0.200
+#- name: vip-db
+#addr: 172.16.0.201
+#- name: vip-keystone-int
+#addr: 172.16.0.202
+#- name: vip-glance-int
+#addr: 172.16.0.203
+#- name: vip-cinder-int
+#addr: 172.16.0.204
+#- name: vip-nova-int
+#addr: 172.16.0.205
+#- name: vip-neutron-int
+#addr: 172.16.0.206
+#- name: vip-horizon-int
+#addr: 172.16.0.207
+#- name: vip-heat-int
+#addr: 172.16.0.208
+#- name: vip-ceilometer-int
+#addr: 172.16.0.209
+#- name: vip-keystone-pub
+#addr: 192.168.30.200
+#- name: vip-glance-pub
+#addr: 192.168.30.201
+#- name: vip-cinder-pub
+#addr: 192.168.30.202
+#- name: vip-nova-pub
+#addr: 192.168.30.203
+#- name: vip-neutron-pub
+#addr: 192.168.30.204
+#- name: vip-horizon-pub
+#addr: 192.168.30.205
+#- name: vip-heat-pub
+#addr: 192.168.30.206
+#- name: vip-ceilometer-pub
+#addr: 192.168.30.207
+#keystone_vip: 172.16.0.202
+#glance_vip: 172.16.0.203
+#cinder_vip: 172.16.0.204
+#nova_vip: 172.16.0.205
+#neutron_vip: 172.16.0.206
+#horizon_vip: 172.16.0.207
+#heat_vip: 172.16.0.208
+#ceilometer_vip: 172.16.0.209
+#keystone_public_vip: "192.168.30.200"
+#keystone_admin_vip: "{{ keystone_vip }}"
+#keystone_private_vip: "{{ keystone_vip }}"
+#glance_public_vip: "192.168.30.201"
+#glance_admin_vip: "{{ glance_vip }}"
+#glance_private_vip: "{{ glance_vip }}"
+#cinder_public_vip: "192.168.30.202"
+#cinder_admin_vip: "{{ cinder_vip }}"
+#cinder_private_vip: "{{ cinder_vip }}"
+#nova_public_vip: "192.168.30.203"
+#nova_admin_vip: "{{ nova_vip }}"
+#nova_private_vip: "{{ nova_vip }}"
+#neutron_public_vip: "192.168.30.204"
+#neutron_admin_vip: "{{ neutron_vip }}"
+#neutron_private_vip: "{{ neutron_vip }}"
+#horizon_public_vip: "192.168.30.205"
+#horizon_private_vip: "{{ horizon_vip }}"
+#heat_public_vip: "192.168.30.206"
+#heat_admin_vip: "{{ heat_vip }}"
+#heat_private_vip: "{{ heat_vip }}"
+#ceilometer_public_vip: "192.168.30.207"
+#ceilometer_admin_vip: "{{ ceilometer_vip }}"
+#ceilometer_private_vip: "{{ ceilometer_vip }}"
+#### Neutron parameters
+#neutron_core_plugin: neutron.plugins.ml2.plugin.Ml2Plugin
+#neutron_service_plugins:
+#- neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
+#- neutron.services.firewall.fwaas_plugin.FirewallPlugin
+#- neutron.services.loadbalancer.plugin.LoadBalancerPlugin
+#- neutron.services.metering.metering_plugin.MeteringPlugin
+#neutron_metadata_workers: 20
+#neutron_metadata_backlog: 2048
+#neutron_metadata_proxy_shared_secret: SECRET  # Need to be able to auto-gen
+#neutron_dhcp_enable_isolated_metadata: true
+#neutron_ml2_type_drivers: vlan,vxlan
+#neutron_ml2_tenant_network_types: vxlan
+#neutron_ml2_network_vlan_ranges: "pnet1:100:200"
+#neutron_ml2_vni_ranges: 10:10000
+#neutron_vxlan_vni_ranges: 10:10000
+#neutron_vxlan_group: 239.1.1.1
+#neutron_ovs_tenant_network_type: vxlan
+#neutron_ovs_tunnel_type: vxlan
+#neutron_ovs_tunnel_id_ranges:
+#neutron_ovs_bridges: br-ex
+#neutron_ovs_bridge_ifaces: eth0
+#neutron_ovs_bridge_mappings: "pnet1:br-ex"
+#neutron_agent_tunnel_types: vxlan
+#neutron_external_network_bridge: br-ex
+## Cisco Nexus plugin for Neutron
+#cisco_nexus_l3_enable: true
+#cisco_nexus_switches:
+#- ipaddr: 10.161.0.21
+#username: admin
+#password: SECRET
+#ssh_port: 22
+#hosts:
+#- name: compute-01.cloud.local
+#port: "port-channel:2"
+#- name: compute-02.cloud.local
+#port: "port-channel:2"
+#- name: compute-03.cloud.local
+#port: "port-channel:2"
+#- name: compute-04.cloud.local
+#port: "port-channel:2"
+#- name: compute-05.cloud.local
+#port: "port-channel:2"
+#- name: compute-06.cloud.local
+#port: "port-channel:2"
+#- name: controller1.cloud.local
+#port: "port-channel:2"
+#- name: controller2.cloud.local
+#port: "port-channel:2"
+#- name: controller3.cloud.local
+#port: "port-channel:2"
+#- ipaddr: 10.161.0.22
+#username: admin
+#password: SECRET
+#ssh_port: 22
+#hosts:
+#- name: compute-01.cloud.local
+#port: "port-channel:2"
+#- name: compute-02.cloud.local
+#port: "port-channel:2"
+#- name: compute-03.cloud.local
+#port: "port-channel:2"
+#- name: compute-04.cloud.local
+#port: "port-channel:2"
+#- name: compute-05.cloud.local
+#port: "port-channel:2"
+#- name: compute-06.cloud.local
+#port: "port-channel:2"
+#- name: controller1.cloud.local
+#port: "port-channel:2"
+#- name: controller2.cloud.local
+#port: "port-channel:2"
+#- name: controller3.cloud.local
+#port: "port-channel:2"
+#### Horizon
+#horizon_internal_servername: horizon.cloud.local
+#horizon_public_servername: cloud.local
+#### Ceilometer
+#ceilometer_metering_secret: SECRET   #### NOTE - Should get a way to auto-gen this
+## keep last 5 days data only (value is in secs)
+#ceilometer_time_to_live: 432000
+#
+#### Swift
+#swift_proxy_hosts
+#swift_storage_node_hosts
+#swift_part_power
+#swift_replica_count
+#swift_min_part_hours
+#swift_store_key 		# Validate store_key is in swift and glance backed?
+#  ## service IP for the storage nodes??
