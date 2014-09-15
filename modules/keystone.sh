@@ -43,6 +43,7 @@ openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_token $SERVICE_
 
 # Setup keystone database connection
 openstack-config --set /etc/keystone/keystone.conf database connection mysql://keystone:${keystone_db_pw}@${mariadb_ip}/keystone
+openstack-config --set /etc/keystone/keystone.conf database idle_timeout 200
 
 # Configure PKI 
 keystone-manage pki_setup --keystone-user keystone --keystone-group keystone
@@ -70,6 +71,24 @@ openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_pass ${amqp_au
 #openstack-config --set /etc/keystone/keystone.conf DEFAULT kombu_ssl_keyfile /path/to/clientkeyfile.key
 ### If Certs Signed by 3rd Party, also add this
 #openstack-config --set /etc/keystone/keystone.conf DEFAULT kombu_ssl_ca_certs /path/to/ca.crt
+
+# Set Keystone bind ports / hosts (etc)
+openstack-config --set /etc/keystone/keystone.conf DEFAULT public_bind_host 0.0.0.0
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_bind_host 0.0.0.0
+openstack-config --set /etc/keystone/keystone.conf DEFAULT compute_port 8774
+openstack-config --set /etc/keystone/keystone.conf DEFAULT admin_port 35357
+openstack-config --set /etc/keystone/keystone.conf DEFAULT public_port 5000
+openstack-config --set /etc/keystone/keystone.conf DEFAULT debug False
+openstack-config --set /etc/keystone/keystone.conf DEFAULT verbose True
+openstack-config --set /etc/keystone/keystone.conf DEFAULT log_dir /var/log/keystone
+openstack-config --set /etc/keystone/keystone.conf DEFAULT use_syslog False
+
+openstack-config --set /etc/keystone/keystone.conf catalog template_file /etc/keystone/default_catalog.templates
+openstack-config --set /etc/keystone/keystone.conf catalog driver keystone.catalog.backends.sql.Catalog
+
+openstack-config --set /etc/keystone/keystone.conf token expiration 3600
+openstack-config --set /etc/keystone/keystone.conf token provider keystone.token.providers.pki.Provider
+openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.backends.sql.Token
 
 
 # Configure Firewall to Allow Identity Service Traffic
