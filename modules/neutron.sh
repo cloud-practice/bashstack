@@ -20,8 +20,7 @@ keystone user-role-add --user neutron --role admin --tenant services
 keystone service-create --name neutron --type network --description "OpenStack Networking Service"
 keystone endpoint-create --service neutron --publicurl "http://${neutron_ip_public}:9696" --adminurl "http://${neutron_ip_admin}:9696" --internalurl "http://${neutron_ip_internal}:9696"
 
-##### ***** NEED TO SELECT PLUGIN(S) BELOW ***** #####
-yum -y install openstack-neutron openstack-neutron-PLUGIN openstack-utils openstack-selinux
+yum -y install openstack-neutron openstack-utils openstack-selinux
 
 # iptables rules for neutron
 iptables -I INPUT -p tcp -m multiport --dports 9696 -m comment --comment "neutron incoming" -j ACCEPT
@@ -60,48 +59,51 @@ openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_pass ${amqp_auth
 ### If Certs Signed by 3rd Party, also add this
 #openstack-config --set /etc/neutron/neutron.conf DEFAULT kombu_ssl_ca_certs /path/to/ca.crt
 
-# Enabling the ML2 plug-in 
-yum -y install openstack-neutron-ml2
-ln -s /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
-vi /etc/neutron/plugins/ml2/ml2_conf.ini --- Add appropriate config (nice)
-[ml2]
-type_drivers = local,flat,vlan,gre,vxlan
-mechanism_drivers = openvswitch,linuxbridge,l2population
-[agent]
-l2_population = True
+# Configure more Neutron default settings
+openstack-config --set /etc/neutron/neutron.conf DEFAULT verbose True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT debug False
+openstack-config --set /etc/neutron/neutron.conf DEFAULT use_syslog False
+openstack-config --set /etc/neutron/neutron.conf DEFAULT log_dir /var/log/neutron
+openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host 0.0.0.0
+openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_port 9696
 
-  # Enable the ML2 plugin and L3 router
-  openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.ml2.plugin.Ml2Plugin
-  openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins = neutron.services.l3_router.l3_router_plugin.L3RouterPlugin
-   ##### NOTE - Service plugins also needs to include things like FWaaS.  
-   #### Might need more thought about it...
+# Configure the neutron database connection
+openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:${neutron_db_pw}@${mariadb_ip}/neutron
+openstack-config --set /etc/neutron/neutron.conf database max_retries 10
+openstack-config --set /etc/neutron/neutron.conf database retry_interval 10
+openstack-config --set /etc/neutron/neutron.conf database idle_timeout 3600
 
-   ### Note - a bit later on we create the neutron ml2 database but it's needed before: 
-   systemctl restart neutron-server
+if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
+  echo "ERROR - /root/.my.cnf doesn't exist" 
+  exit 1
+fi
+mysql -u root << EOF
+CREATE DATABASE neutron character set utf8;
+GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '${neutron_db_pw}';
+GRANT ALL ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '${neutron_db_pw}';
+FLUSH PRIVILEGES;
+quit
+EOF
 
-# Enabling the Open vSwitch plug-in
-### This monolithic plug-in has been deprecated
-  yum -y install openstack-neutron-openvswitch
-  ln -s /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini /etc/neutron/plugin.ini
 
-  # Set the tenant network type (flat, gre, local, vlan, or vxlan)
-  openstack-config --set /etc/neutron/plugin.ini OVS tenant_network_type TYPE
+if [[ ${neutron_l2_plugin} == "ml2" ]] ; then
 
-  # If Flat or VLAN: (ie physnet1:1000:2999,physnet2:3000:3999)
-  openstack-config --set /etc/neutron/plugin.ini OVS network_vlan_ranges NAME:START:END
 
-  # Update the core plugin.  Probably also need the services plugin above
-  openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.openvswitch.ovs_neutron_plugin.OVSNeutronPluginV2
+elif [[ ${neutron_l2_plugin} == "linuxbridge" ]] ; then
 
-# Enabling the LinuxBridge plug-in
-### This monolithic plug-in has been deprecated
-  ln -s /etc/neutron/plugins/linuxbridge/linuxbridge_conf.ini /etc/neutron/plugin.ini
+elif [[ ${neutron_l2_plugin} == "openvswitch" ]] ; then
 
-  # Set the tenant network type (flat, local, or vlan)
-  openstack-config --set /etc/neutron/plugin.ini VLAN tenant_network_type TYPE
+else
+  echo "L2 plugin ${neutron_l2_plugin} not recognized. Exiting"
+  exit 1
+fi
 
-  # If Flat or VLAN: (ie physnet1:1000:2999,physnet2:3000:3999)
-  openstack-config --set /etc/neutron/plugin.ini LINUX_BRIDGE network_vlan_ranges NAME:START:END
+
+
+
+
+
+
 
   # Update the core plugin.  Probably also need the services plugin above
   openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.linuxbridge.lb_neutron_plugin.LinuxBridgePluginV2
@@ -120,29 +122,10 @@ ovs-vsctl add-br OVS-BR0
 ovs-vsctl add-port OVS-BR0 vxlan1 -- set Interface vxlan1 type=vxlan options:remote_ip=192.168.1.11
 ovs-vsctl add-port OVS-BR0 vxlan1 -- set Interface vxlan1 type=vxlan options:remote_ip=192.168.1.10
 
-# Configure the neutron database connection
-openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:${neutron_db_pw}@${mariadb_ip}/neutron
-##### NOTE - This DB probably varies based on the below
-### ANY REASON WE DON'T STANDARDIZE AND CALL THE DATABASE 'neutron' ?? 
 
-# Create the Neutron Database
-##If ML2: $DBNAME=neutron_ml2
-##If OVS: $DBNAME=ovs_neutron
-##If Linux Bridge: $DBNAME=neutron_linux_bridge
 
-if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
-  echo "ERROR - /root/.my.cnf doesn't exist" 
-  exit 1
-fi
-mysql -u root << EOF
-CREATE DATABASE neutron_ml2 character set utf8;
-GRANT ALL ON neutron_ml2.* TO 'neutron'@'%' IDENTIFIED BY '${neutron_db_pw}';
-GRANT ALL ON neutron_ml2.* TO 'neutron'@'localhost' IDENTIFIED BY '${neutron_db_pw}';
-FLUSH PRIVILEGES;
-quit
-EOF
 
-# Populate the database
+# Populate the database - including L2 plugin 
 neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugin.ini upgrade head
 
 # Start/Enable Neutron Service

@@ -202,7 +202,8 @@ use_nova_network=n
 
 # 
 use_neutron=y
-use_neutron_ml2=y
+# Choose L2 plugin to deploy (ie ml2, openvswitch, linuxbridge, ...)
+neutron_l2_plugin=ml2
 use_neutron_cisco=n
 use_lbaas=y
 use_vpnaas=y
