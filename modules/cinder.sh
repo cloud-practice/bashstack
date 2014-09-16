@@ -36,15 +36,15 @@ yum install -y openstack-cinder openstack-utils openstack-selinux
 
 # Configure Block Storage Authentication through keystone
 openstack-config --set /etc/cinder/cinder.conf DEFAULT auth_strategy keystone
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken auth_host ${keystone_ip}
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken service_port 5000
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken service_host ${keystone_ip}
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken service_protocol 35357
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken auth_uri http://${keystone_ip}:5000/
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken auth_port 35357
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken admin_tenant_name services
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken admin_user cinder
-openstack-config --set /etc/cinder/api-paste.conf filter:authtoken admin_password ${cinder_pw}
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken auth_host ${keystone_ip}
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken service_port 5000
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken service_host ${keystone_ip}
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken service_protocol http
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken auth_uri http://${keystone_ip}:5000/
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken auth_port 35357
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken admin_tenant_name services
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken admin_user cinder
+openstack-config --set /etc/cinder/api-paste.ini filter:authtoken admin_password ${cinder_pw}
 
 # Configure Cinder to Use SSL
 # openstack-config --set /etc/cinder/cinder.conf ssl backlog REQS
@@ -58,7 +58,7 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT rpc_backend cinder.openst
 openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_host ${amqp_ip}
 openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_port 5672
 openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_userid ${amqp_auth_user}
-openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_pass ${amqp_auth_pw}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_password ${amqp_auth_pw}
 #*********** RABBIT HA SETTINGS ***************
 ### If SSL enabled on RabbitMQ
 #openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_use_ssl True
@@ -69,31 +69,58 @@ openstack-config --set /etc/cinder/cinder.conf DEFAULT rabbit_pass ${amqp_auth_p
 
 # Configure block storage database connection
 openstack-config --set /etc/cinder/cinder.conf database connection mysql://cinder:${cinder_db_pw}@${mariadb_ip}/cinder
+openstack-config --set /etc/cinder/cinder.conf database idle_timeout 3600
+
+# Additional Cinder configuration 
+openstack-config --set /etc/cinder/cinder.conf notification_driver cinder.openstack.common.notifier.rpc_notifier
+openstack-config --set /etc/cinder/cinder.conf control_exchange openstack
+openstack-config --set /etc/cinder/cinder.conf osapi_volume_listen 0.0.0.0
+
+# Cinder Swift backup --optional--
+##backup_swift_url=http://192.168.122.181:8080/v1/AUTH_
+##backup_swift_container=volumes_backup
+##backup_swift_object_size=52428800
+##backup_swift_retry_attempts=3
+##backup_swift_retry_backoff=2
+##backup_driver=cinder.backup.drivers.swift
+
+openstack-config --set /etc/cinder/cinder.conf DEFAULT api_paste_config /etc/cinder/api-paste.ini
+openstack-config --set /etc/cinder/cinder.conf DEFAULT glance_host ${glance_ip}
+openstack-config --set /etc/cinder/cinder.conf DEFAULT backup_topic cinder-backup
+openstack-config --set /etc/cinder/cinder.conf DEFAULT backup_manager cinder.backup.manager.BackupManager
+openstack-config --set /etc/cinder/cinder.conf DEFAULT backup_api_class cinder.backup.api.API
+openstack-config --set /etc/cinder/cinder.conf DEFAULT backup_name_template backup-%s
+openstack-config --set /etc/cinder/cinder.conf DEFAULT debug False
+openstack-config --set /etc/cinder/cinder.conf DEFAULT verbose True
+openstack-config --set /etc/cinder/cinder.conf DEFAULT log_dir /var/log/cinder
+openstack-config --set /etc/cinder/cinder.conf DEFAULT use_syslog False
+openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_backend_name DEFAULT
+
 
 # iptables firewall to allow block storage traffic 
 iptables -I INPUT -p tcp -m multiport --dports 3260,8776 -m comment --comment "cinder incoming" -j ACCEPT
 service iptables save; service iptables restart
 
 # Populate the cinder database
-su cinder -s /bin/sh
-cinder-manage db sync
+chown cinder:cinder /var/log/cinder/cinder-manage.log
+su -s /bin/sh -c "cinder-manage db sync" cinder
 
 # Increate the throughput of the block storage API service
-openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_workers CORES
+#####openstack-config --set /etc/cinder/cinder.conf DEFAULT osapi_volume_workers CORES
 ### Note - packstack doesn't set this...
 
 # Volume Service - LVM Backend (Block Storage Node)
-yum -y install openstack-cinder
+#yum -y install openstack-cinder
 ##### Create /etc/cinder/cinder.conf as above...  Or copy over... your choice
-pvcreate /dev/sdXX
-vgcreate cinder-volumes /dev/sdXX
-openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_group cinder-volumes
-openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volume.drivers.lvm.LVMISCSIDriver
+#pvcreate /dev/sdXX
+#vgcreate cinder-volumes /dev/sdXX
+#openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_group cinder-volumes
+#openstack-config --set /etc/cinder/cinder.conf DEFAULT volume_driver cinder.volume.drivers.lvm.LVMISCSIDriver
 
 # Setup iSCSI Target (iSCSI Server)
-yum -y install targetcli
-systemctl enable target
-systemctl start target
+#yum -y install targetcli
+#systemctl enable target
+#systemctl start target
 ##### NOTE - This is tgtd on RHEL 6
 
   # Add a filter in LVM.conf to keep LVM from scanning devices of virtual machines
