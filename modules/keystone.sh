@@ -24,9 +24,6 @@ FLUSH PRIVILEGES;
 quit
 EOF
 
-# Populate the keystone database
-su keystone -s /bin/sh -c "keystone-manage db_sync"
-
 # Set the identity service admin token
 if [[ $keystone_admin_token == "" ]] ; then
   export SERVICE_TOKEN=$(openssl rand -hex 10)
@@ -95,6 +92,10 @@ openstack-config --set /etc/keystone/keystone.conf token driver keystone.token.b
 iptables -I INPUT -p tcp -m multiport --dports 5000,35357 -m comment --comment "keystone incoming" -j ACCEPT
 service iptables save; service iptables restart
 
+# Populate the keystone database
+su keystone -s /bin/sh -c "keystone-manage db_sync"
+
+
 # Start Keystone 
 systemctl enable openstack-keystone
 systemctl start openstack-keystone
@@ -105,7 +106,7 @@ export SERVICE_ENDPOINT="http://${keystone_ip_admin}:35357/v2.0"
 
 keystone service-create --name=keystone --type=identity --description="Keystone Identity service"
 
-keystone endpoint-create --service keystone --publicurl 'http://${keystone_ip_public}:5000/v2.0' --adminurl 'http://${keystone_ip_admin}:35357/v2.0' --internalurl 'http://${keystone_ip_internal}:5000/v2.0'
+keystone endpoint-create --service keystone --publicurl "http://${keystone_ip_public}:5000/v2.0" --adminurl "http://${keystone_ip_admin}:35357/v2.0" --internalurl "http://${keystone_ip_internal}:5000/v2.0"
 
 ## IS MULTI-REGION A REQUIREMENT???
 ##keystone endpoint-create --region REGION --service keystone --publicurl 'http://IP:5000/v2.0' --adminurl 'http://IP:35357/v2.0' --internalurl 'http://IP:5000/v2.0'
@@ -120,7 +121,7 @@ keystone role-create --name admin
 keystone tenant-create --name admin
 keystone user-role-add --user admin --role admin --tenant admin
 
-cat << EOF >> /root/keystonerc_admin
+cat << EOF > /root/keystonerc_admin
 export OS_USERNAME=admin
 export OS_TENANT_NAME=admin
 export OS_PASSWORD=${admin_pw}
