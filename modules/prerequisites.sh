@@ -58,6 +58,9 @@ lsmod | grep kvm
 #### These really should be optional
 yum -y install bind-utils net-tools wget telnet
 
+# Install OpenStack selinux 
+yum -y install openstack-selinux
+
 # Update all packages 
 yum -y update 
 

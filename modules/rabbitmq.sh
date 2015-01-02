@@ -14,10 +14,13 @@ fi
 
 
 # Set firewall rule to allow incoming traffic
-iptables -I INPUT -p tcp --dports 5672 -m comment --comment "amqp incoming" -j ACCEPT
-iptables -I INPUT -p tcp --dports 5671 -m comment --comment "amqp SSL incoming" -j ACCEPT
+iptables -I INPUT -p tcp -m multiport --dports 5672 -m comment --comment "amqp incoming" -j ACCEPT
+iptables -I INPUT -p tcp -m multiport --dports 5671 -m comment --comment "amqp SSL incoming" -j ACCEPT
 service iptables save
 service iptables restart
+
+# Setup SELinux rules (so you don't hate yourself for hours) 
+yum -y install openstack-selinux
 
 # Install rabbitmq
 yum -y install rabbitmq-server
@@ -32,9 +35,27 @@ rabbitmqctl add_user ${amqp_auth_user} ${amqp_auth_pw}
 rabbitmqctl set_permissions ${amqp_auth_user} ".*" ".*" ".*"
 rabbitmqctl set_user_tags ${amqp_auth_user} administrator
 
+# Write rabbitmq.config
+cat << EOF >> /etc/rabbitmq/rabbitmq.config
+[
+  {rabbit, [
+    {default_user, <<"${amqp_auth_user}">>},
+    {default_pass, <<"${amqp_auth_pw}">>}
+  ]},
+  {kernel, [
 
-### Note a guest user / guest password is automatically created.  You'll want
-### to change this! 
+  ]}
+].
+EOF
+
+# Write rabbitmq-env.config
+### NOTE: This would be different with SSL!
+cat << EOF >> /etc/rabbitmq/rabbitmq-env.config
+RABBITMQ_NODE_PORT=5672
+EOF
+
+
+# Start and enable rabbitmq
 systemctl start rabbitmq-server.service
 systemctl enable rabbitmq-server.service
 

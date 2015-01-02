@@ -8,7 +8,7 @@
 /usr/lib/rabbitmq/bin/rabbitmq-plugins list
 
 # Set firewall rule to allow incoming traffic
-iptables -I INPUT -p tcp --dports 15672 -m comment --comment "rabbitmq mgmt console incoming" -j ACCEPT
+iptables -I INPUT -p tcp -m multiport --dports 15672 -m comment --comment "rabbitmq mgmt console incoming" -j ACCEPT
 service iptables save
 service iptables restart
 
