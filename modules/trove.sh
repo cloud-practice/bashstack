@@ -18,7 +18,7 @@ yum -y install openstack-trove python-troveclient
 # Create the trove user to auth with keystone
 . /root/keystonerc_admin
 keystone user-create --name=trove --pass=${trove_pw}
-keystone user-role-add --user=trove --tenant=service --role=admin
+keystone user-role-add --user=trove --tenant=services --role=admin
 
 # Configure service URLs, logging, and database connection
 for cfgfile in /etc/trove/trove.conf /etc/trove/trove-taskmanager.conf /etc/trove/trove-conductor.conf
@@ -64,7 +64,7 @@ openstack-config --set /etc/trove/api-paste.conf filter:authtoken auth_protocol 
 openstack-config --set /etc/trove/api-paste.conf filter:authtoken admin_user trove
 openstack-config --set /etc/trove/api-paste.conf filter:authtoken admin_password ADMIN_PASS
 openstack-config --set /etc/trove/api-paste.conf filter:authtoken admin_token ADMIN_TOKEN
-openstack-config --set /etc/trove/api-paste.conf filter:authtoken admin_tenant_name service
+openstack-config --set /etc/trove/api-paste.conf filter:authtoken admin_tenant_name services
 openstack-config --set /etc/trove/api-paste.conf filter:authtoken signing_dir /var/cache/trove
 
 # Add Default datastore and network label regex to trove.conf
@@ -75,7 +75,7 @@ openstack-config --set /etc/trove/trove.conf DEFAULT network_label_regex ^NETWOR
 # Add Nova Compute connection details for task manager
 openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_user = admin
 openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_pass = ADMIN_PASS
-openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_tenant_name = service
+openstack-config --set /etc/trove/trove-taskmanager.conf DEFAULT nova_proxy_admin_tenant_name = services
 
 # Prepare the trove database
 if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
@@ -117,7 +117,7 @@ su -s /bin/sh -c "trove-manage datastore_update cassandra ''" trove
    # Add Nova Config to the Guest Agent
    #openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_user = admin
    #openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_pass = ADMIN_PASS
-   #openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_tenant_name = service
+   #openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT nova_proxy_admin_tenant_name = services
    #openstack-config --set /etc/trove/trove-guestagent.conf DEFAULT trove_auth_url = http://controller:35357/v2.0
 
 # Update the datastore to use the new glance image

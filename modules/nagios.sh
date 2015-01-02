@@ -67,7 +67,7 @@ cat << EOF >> /usr/lib64/nagios/plugins/cinder-list
 
 . /etc/nagios/keystonerc_admin
 
-=$(cinder list --all-tenants 2>&1)
+data=$(cinder list --all-tenants 2>&1)
 rv=$?
 
 if [ "$rv" != "0" ] ; then

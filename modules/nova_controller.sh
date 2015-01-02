@@ -47,10 +47,10 @@ EOF
 
 # Configure compute service authentication through keystone
 source ~/keystonerc_admin
-keystone user-create --name compute --pass ${nova_pw}
-keystone user-role-add --user compute --role admin --tenant services
-keystone service-create --name compute --type compute --description "OpenStack Compute Service"
-keystone endpoint-create --service compute --publicurl "http://${nova_public_ip}:8774/v2/\$(tenant_id)s" --adminurl "http://${nova_admin_ip}:8774/v2/\$(tenant_id)s" --internalurl "http://${nova_internal_ip}:8774/v2/\$(tenant_id)s"
+keystone user-create --name nova --pass ${nova_pw}
+keystone user-role-add --user nova --role admin --tenant services
+keystone service-create --name nova --type compute --description "OpenStack Compute Service"
+keystone endpoint-create --service nova --publicurl "http://${nova_public_ip}:8774/v2/\$(tenant_id)s" --adminurl "http://${nova_admin_ip}:8774/v2/\$(tenant_id)s" --internalurl "http://${nova_internal_ip}:8774/v2/\$(tenant_id)s"
 
 # Install compute service packages (controller)
 yum -y install openstack-nova-api openstack-nova-conductor openstack-nova-scheduler

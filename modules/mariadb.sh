@@ -34,3 +34,29 @@ host=localhost
 password=${db_root_pw}
 EOF
 
+# Drop the test database (if it exists)
+mysql -u root -e 'DROP DATABASE IF EXISTS test;'
+
+# Drop all users but root@localhost
+## Note there is no drop if exists.  So I'm working around that by granting then removing a user... 
+## You can validate users with mysql -u root -e 'select user,host from mysql.user;'
+mysql -u root << EOF
+GRANT USAGE ON *.* TO ''@'localhost';
+DROP USER ''@'localhost';
+
+GRANT USAGE ON *.* TO ''@'$(hostname)';
+DROP USER ''@'$(hostname)';
+
+GRANT USAGE ON *.* TO ''@'%';
+DROP USER ''@'%';
+
+GRANT USAGE ON *.* TO 'root'@'$(hostname)';
+DROP USER 'root'@'$(hostname)';
+
+GRANT USAGE ON *.* TO 'root'@'127.0.0.1';
+DROP USER 'root'@'127.0.0.1';
+
+GRANT USAGE ON *.* TO 'root'@'::1';
+DROP USER 'root'@'::1';
+
+EOF

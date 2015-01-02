@@ -88,7 +88,6 @@ EOF
 
 if [[ ${neutron_l2_plugin} == "ml2" ]] ; then
 
-
 elif [[ ${neutron_l2_plugin} == "linuxbridge" ]] ; then
 
 elif [[ ${neutron_l2_plugin} == "openvswitch" ]] ; then
