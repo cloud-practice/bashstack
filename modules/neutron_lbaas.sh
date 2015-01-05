@@ -12,4 +12,16 @@ else
   source $ANSWERS
 fi
 
-exit 1
+yum -y install neutron-lbaas-agent
+yum -y install haproxy
+
+# Configure LBaaS
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT debug False
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutron.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT use_namespaces True
+openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT user_group haproxy
+
+# Start LBaaS 
+systemctl enable neutron-lbaas-agent
+systemctl start neutron-lbaas-agent
