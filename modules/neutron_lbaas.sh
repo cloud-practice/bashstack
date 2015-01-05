@@ -22,6 +22,13 @@ openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutro
 openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT use_namespaces True
 openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT user_group haproxy
 
+# Configure base Neutron 
+### NEED WORK HERE.  But with ML2, it should have loadblanacer specified in service plugin and service provider similar to this: 
+# [DEFAULT]
+# service_plugins =neutron.services.loadbalancer.plugin.LoadBalancerPlugin,neutron.services.l3_router.l3_router_plugin.L3RouterPlugin,neutron.services.metering.metering_plugin.MeteringPlugin,neutron.services.firewall.fwaas_plugin.FirewallPlugin
+# [service_providers]
+# service_provider=LOADBALANCER:Haproxy:neutron.services.loadbalancer.drivers.haproxy.plugin_driver.HaproxyOnHostPluginDriver:default
+
 # Start LBaaS 
 systemctl enable neutron-lbaas-agent
 systemctl start neutron-lbaas-agent
