@@ -129,6 +129,7 @@ ha=n
 # Note - mongo & rabbit boot stap nodes should always be the first in the nodes list (ie first in rabbit_nodes or mongo_nodes)
 mongo_bootstrap_node=controller1
 rabbit_bootstrap_node=controller1 
+keystone_bootstrap_node=controller1 
 bootstrap_node=controller1
 ha_type=keepalived
 #ha_type=pacemaker
@@ -141,6 +142,9 @@ amqp_servers=
 controller_hosts="controller1 controller2 controller3"
 rabbit_nodes="controller1 controller2 controller3"
 rabbit_bind_nic="eth1"
+keystone_admin_bind_nic="eth1"
+keystone_public_bind_nic="eth1"
+keystone_nodes="controller1 controller2 controller3"
 mongo_nodes="controller1 controller2 controller3" 
 networker_hosts="controller1 controller2 controller3"
 haproxy_hosts="controller1 controller2 controller3"
