@@ -15,10 +15,13 @@ fi
 # Install Packages 
 yum -y install openstack-trove python-troveclient
 
-# Create the trove user to auth with keystone
+# Create trove keystone user/service/endpoint
 . /root/keystonerc_admin
 keystone user-create --name=trove --pass=${trove_pw}
 keystone user-role-add --user=trove --tenant=services --role=admin
+keystone service-create --name=trove --type=database --description="OpenStack Database Service"
+keystone endpoint-create --service=trove --publicurl=http://${trove_ip_public}:8779/v1.0/%\(tenant_id\)s --internalurl=http://${trove_ip_internal}:8779/v1.0/%\(tenant_id\)s --adminurl=http://${trove_ip_admin}:8779/v1.0/%\(tenant_id\)s
+
 
 # Configure service URLs, logging, and database connection
 for cfgfile in /etc/trove/trove.conf /etc/trove/trove-taskmanager.conf /etc/trove/trove-conductor.conf
@@ -124,10 +127,6 @@ su -s /bin/sh -c "trove-manage datastore_update cassandra ''" trove
    ### Note this example is for mysql... 
 trove-manage --config-file=/etc/trove/trove.conf datastore_version_update \
   mysql mysql-5.5 mysql glance_image_ID mysql-server-5.5 1
-
-# Register trove with keystone
-keystone service-create --name=trove --type=database --description="OpenStack Database Service"
-keystone endpoint-create --service=trove --publicurl=http://${trove_ip_public}:8779/v1.0/%\(tenant_id\)s --internalurl=http://${trove_ip_internal}:8779/v1.0/%\(tenant_id\)s --adminurl=http://${trove_ip_admin}:8779/v1.0/%\(tenant_id\)s
 
 # Enable and Start the Database Services
 systemctl enable openstack-trove-api

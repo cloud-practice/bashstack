@@ -30,6 +30,8 @@ keystone user-create --name cinder --pass ${cinder_pw}
 keystone user-role-add --user cinder --role admin --tenant services
 keystone service-create --name cinder --type volume --description "Cinder Volume Service"
 keystone endpoint-create --service cinder --publicurl "http://${cinder_ip_public}:8776/v1/\$(tenant_id)s" --adminurl "http://${cinder_ip_admin}:8776/v1/\$(tenant_id)s" --internalurl "http://${cinder_ip_internal}:8776/v1/\$(tenant_id)s"
+keysteon service-create --name cinderv2 --type volumev2 --description "Cinder Volume Service v2"
+keystone endpoint-create --service cinderv2 --publicurl "http://${cinder_ip_public}:8776/v2/\$(tenant_id)s" --adminurl "http://${cinder_ip_admin}:8776/v2/\$(tenant_id)s" --internalurl "http://${cinder_ip_internal}:8776/v2/\$(tenant_id)s"
 
 # Install Cinder Packages
 yum install -y openstack-cinder openstack-utils openstack-selinux
