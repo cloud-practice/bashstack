@@ -12,7 +12,7 @@ else
   source $ANSWERS
 fi
 
-yum -y install mongodb mongodb-server openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
+yum -y install openstack-ceilometer-api openstack-ceilometer-central openstack-ceilometer-collector openstack-ceilometer-common openstack-ceilometer-alarm python-ceilometer python-ceilometerclient
 
 # Create the Ceilometer records in keystone:
 source ~/keystonerc_admin

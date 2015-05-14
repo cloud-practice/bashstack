@@ -18,6 +18,7 @@ install_glance=y
 install_heat=y
   # Any value in splitting out cfn/cloudwatch?  I say no
 install_horizon=y
+install_mongodb=y
 install_nagios=y
 install_neutron=y
 install_nova=y
@@ -122,14 +123,21 @@ trove_ip_admin=${trove_ip}
 
 
 # High Availability Configuration
-use_ha_controller_plane=n
-  # Fencing options (fence_ipmi, fence_cisco_ucs, and fence_xvm)
+ha=n
+#ha=y
+# bootstrap node (node in the cluster to use for individual commands)
+mongo_bootstrap_node=controller1
+bootstrap_node=controller1
+ha_type=keepalived
+#ha_type=pacemaker
 use_fencing=n
+# Fencing options (fence_ipmi, fence_cisco_ucs, and fence_xvm)
 fence_agent=
 mariadb_hosts=
 use_galera=n
 amqp_servers=
 controller_hosts="controller1 controller2 controller3"
+mongo_nodes="controller1 controller2 controller3" 
 networker_hosts="controller1 controller2 controller3"
 haproxy_hosts="controller1 controller2 controller3"
 ### Pacemaker cluster
