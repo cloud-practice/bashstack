@@ -36,9 +36,9 @@ ONBOOT=yes
 yum -y install iptables iptables-services
 
 # Disable firewalld and enable iptables
-service firewalld stop
+systemctl stop firewalld 
+systemctl disable firewalld
 service iptables start
-chkconfig firewalld off
 chkconfig iptables on
 
 # Setup and start NTP 
