@@ -126,7 +126,9 @@ trove_ip_admin=${trove_ip}
 ha=n
 #ha=y
 # bootstrap node (node in the cluster to use for individual commands)
+# Note - mongo & rabbit boot stap nodes should always be the first in the nodes list (ie first in rabbit_nodes or mongo_nodes)
 mongo_bootstrap_node=controller1
+rabbit_bootstrap_node=controller1 
 bootstrap_node=controller1
 ha_type=keepalived
 #ha_type=pacemaker
@@ -137,6 +139,8 @@ mariadb_hosts=
 use_galera=n
 amqp_servers=
 controller_hosts="controller1 controller2 controller3"
+rabbit_nodes="controller1 controller2 controller3"
+rabbit_bind_nic="eth1"
 mongo_nodes="controller1 controller2 controller3" 
 networker_hosts="controller1 controller2 controller3"
 haproxy_hosts="controller1 controller2 controller3"

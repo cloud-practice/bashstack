@@ -4,6 +4,9 @@
 # Description:	Install RabbitMQ
 ##########################################################################
 
+### TODO: Add SSL Support
+
+
 ANSWERS=/root/bashstack/answers.txt
 
 if [[ ! -f $ANSWERS ]] ; then
@@ -12,15 +15,25 @@ else
   source $ANSWERS
 fi
 
-
-# Set firewall rule to allow incoming traffic
-iptables -I INPUT -p tcp -m multiport --dports 5672 -m comment --comment "amqp incoming" -j ACCEPT
-iptables -I INPUT -p tcp -m multiport --dports 5671 -m comment --comment "amqp SSL incoming" -j ACCEPT
-service iptables save
-service iptables restart
-
-# Setup SELinux rules (so you don't hate yourself for hours) 
-yum -y install openstack-selinux
+# Firewall rules for RabbitMQ:
+if [[ $(systemctl is-active firewalld) == "active" ]] ; then
+  firewall-cmd --add-port=5671/tcp
+  firewall-cmd --add-port=5671/tcp --permanent
+  firewall-cmd --add-port=5672/tcp
+  firewall-cmd --add-port=5672/tcp --permanent
+  firewall-cmd --add-port=4369/tcp
+  firewall-cmd --add-port=4369/tcp --permanent
+  firewall-cmd --add-port=44001/tcp
+  firewall-cmd --add-port=44001/tcp --permanent
+elif  [[ $(systemctl is-active iptables) == "active" ]] ; then
+  iptables -I INPUT -p tcp -m multiport --dports 5671 -m comment --comment "amqp SSL incoming" -j ACCEPT
+  iptables -I INPUT -p tcp -m multiport --dports 5672 -m comment --comment "amqp incoming" -j ACCEPT
+  iptables -I INPUT -p tcp -m multiport --dports 4369 -m comment --comment "amqp epmd" -j ACCEPT
+  iptables -I INPUT -p tcp -m multiport --dports 44001 -m comment --comment "amqp rabbit" -j ACCEPT
+  service iptables save; service iptables restart
+else
+  echo "No firewall rules created as firewalld and iptables are inactive"
+fi
 
 # Install rabbitmq
 yum -y install rabbitmq-server
@@ -35,8 +48,50 @@ rabbitmqctl add_user ${amqp_auth_user} ${amqp_auth_pw}
 rabbitmqctl set_permissions ${amqp_auth_user} ".*" ".*" ".*"
 rabbitmqctl set_user_tags ${amqp_auth_user} administrator
 
+systemctl stop rabbitmq-server.servie
+
 # Write rabbitmq.config
-cat << EOF >> /etc/rabbitmq/rabbitmq.config
+if [[ $ha == "y" ]]; then
+RABBIT_CLUSTER_STRING=""
+  for node in $rabbit_nodes
+  do 
+    RABBIT_CLUSTER_STRING="'rabbit@${node}', "
+  done
+  RABBIT_CLUSTER_STRING=$(sed 's/, $//' $RABBIT_CLUSTER_STRING)
+  # NOTE: string should look like: 'rabbit@hacontroller1', 'rabbit@hacontroller2', 'rabbit@hacontroller3'
+
+  cat << EOF > /etc/rabbitmq/rabbitmq.config
+[
+  {rabbit, [
+    {cluster_nodes, {[${RABBIT_CLUSTER_STRING}], disc}},
+    {cluster_partition_handling, ignore},
+    {default_user, <<"${amqp_auth_user}">>},
+    {default_pass, <<"${amqp_auth_pw}">>},
+    {tcp_listen_options, [binary,
+        {packet, raw},
+        {reuseaddr, true},
+        {backlog, 128},
+        {nodelay, true},
+        {exit_on_close, false},
+        {keepalive, true}]}
+  ]},
+  {kernel, [
+        {inet_dist_listen_max, 44001},
+        {inet_dist_listen_min, 44001}
+  ]}
+].
+EOF
+
+  cat > /etc/sysctl.d/tcpka.conf << EOF
+net.ipv4.tcp_keepalive_intvl = 1
+net.ipv4.tcp_keepalive_probes = 5
+net.ipv4.tcp_keepalive_time = 5
+EOF
+
+sysctl -p /etc/sysctl.d/tcpka.conf
+  
+else
+  cat << EOF > /etc/rabbitmq/rabbitmq.config
 [
   {rabbit, [
     {default_user, <<"${amqp_auth_user}">>},
@@ -47,32 +102,25 @@ cat << EOF >> /etc/rabbitmq/rabbitmq.config
   ]}
 ].
 EOF
+fi
 
 # Write rabbitmq-env.config
 ### NOTE: This would be different with SSL!
 cat << EOF >> /etc/rabbitmq/rabbitmq-env.config
+RABBITMQ_NODE_IP=$(ip addr show dev ${rabbit_bind_nic} scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 RABBITMQ_NODE_PORT=5672
 EOF
 
-
-# Start and enable rabbitmq
-systemctl start rabbitmq-server.service
-systemctl enable rabbitmq-server.service
+if [[ $ha == "y" ]] ; then
+  systemctl stop  rabbitmq-server.service
+else
+  # Start and enable rabbitmq
+  systemctl start rabbitmq-server.service
+fi
 
 ##### ADD CHECK TO VALIDATE RABBIT IS UP PRIOR TO MOVING FORWARD?
 
 # NOTE - Chapter 2 of the CL315 training course on rabbit has good way to test functionality
-
-# Create RabbitMQ User accounts:
-rabbitmqctl add_user cinder $cinder_pw
-rabbitmqctl add_user glance $glance_pw
-rabbitmqctl add_user heat $heat_pw
-rabbitmqctl add_user nova $nova_pw
-rabbitmqctl add_user neutron $neutron_pw
-rabbitmqctl add_user trove $trove_pw
-##### Note - it looks like these aren't needed.  Packstack just uses amqp_user
-### Although amqp_user would be an administrator :/
-rabbitmqctl list_users
 
 # Create certificates for RabbitMQ SSL Communication 
 #mkdir /etc/pki/rabbitmq
