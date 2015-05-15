@@ -12,19 +12,55 @@ else
   source $ANSWERS
 fi
 
-
-# Configure Neutron to auth through keystone
-source ~/keystonerc_admin
-keystone user-create --name neutron --pass ${neutron_pw}
-keystone user-role-add --user neutron --role admin --tenant services
-keystone service-create --name neutron --type network --description "OpenStack Networking Service"
-keystone endpoint-create --service neutron --publicurl "http://${neutron_ip_public}:9696" --adminurl "http://${neutron_ip_admin}:9696" --internalurl "http://${neutron_ip_internal}:9696"
-
 yum -y install openstack-neutron openstack-utils openstack-selinux
+yum -y install openstack-neutron-openvswitch openstack-neutron-ml2
 
-# iptables rules for neutron
-iptables -I INPUT -p tcp -m multiport --dports 9696 -m comment --comment "neutron incoming" -j ACCEPT
-service iptables save; service iptables restart
+# Firewall rules for neutron
+if [[ $firewall == "firewalld" ]] ; then
+  # Neutron Server API
+  firewall-cmd --add-port=9696/tcp
+  firewall-cmd --add-port=9696/tcp --permanent
+  # VxLAN
+  firewall-cmd --add-port=4789/udp
+  firewall-cmd --add-port=4789/udp --permanent
+elif  [[ $firewall == "iptables" ]] ; then
+  iptables -I INPUT -p tcp -m multiport --dports 9696 -m comment --comment "neutron api incoming" -j ACCEPT
+  iptables -I INPUT -p udp -m multiport --dports 4789 -m comment --comment "VxLAN incoming" -j ACCEPT
+
+  # IS THIS NEEDED?? 
+  # -A INPUT -p gre -j ACCEPT
+  # -A OUTPUT -p gre -j ACCEPT
+
+  service iptables save; service iptables restart
+else
+  echo "No firewall rules created as firewalld and iptables are inactive"
+fi
+
+if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
+  echo "ERROR - /root/.my.cnf doesn't exist" 
+  exit 1
+fi
+
+if [[ $(hostname -s) == $neutron_bootstrap_node ]]; then
+  # Create the Neutron Database
+  mysql -u root << EOF
+CREATE DATABASE neutron character set utf8;
+GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '${neutron_db_pw}';
+GRANT ALL ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '${neutron_db_pw}';
+FLUSH PRIVILEGES;
+quit
+EOF
+
+  # Configure Neutron to auth through keystone
+  source ~/keystonerc_admin
+  keystone user-create --name neutron --pass ${neutron_pw}
+  keystone user-role-add --user neutron --role admin --tenant services
+  keystone service-create --name neutron --type network --description "OpenStack Networking Service"
+  keystone endpoint-create --service neutron --publicurl "http://${neutron_ip_public}:9696" --adminurl "http://${neutron_ip_admin}:9696" --internalurl "http://${neutron_ip_internal}:9696"
+fi
+
+# Configure Neutron
+openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host $(ip addr show dev ${neutron_bind_nic} scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
 
 # Configure Neutron Auth through keystone
 openstack-config --set /etc/neutron/neutron.conf DEFAULT auth_strategy keystone
@@ -45,13 +81,23 @@ openstack-config --set /etc/neutron/api-paste.conf filter:authtoken admin_user n
 openstack-config --set /etc/neutron/api-paste.conf filter:authtoken admin_tenant_name services
 openstack-config --set /etc/neutron/api-paste.conf filter:authtoken admin_password ${neutron_pw}
 
-# Configure RabbitMQ Settings for Neutron
+# Configure DB Connection
+openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:${neutron_db_pw}@${mariadb_ip}/neutron
+openstack-config --set /etc/neutron/neutron.conf database max_retries -1
+
+# Configure RabbitMQ
 openstack-config --set /etc/neutron/neutron.conf DEFAULT rpc_backend neutron.openstack.common.rpc.impl_kombu
-openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host ${amqp_ip}
+if [[ $ha == y ]]; then
+  rabbit_nodes_cs=$(sed -e 's/ /,/g' ${rabbit_nodes})
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_hosts ${rabbit_nodes_cs}
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues True
+else
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_host ${amqp_ip}
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_ha_queues False
+fi
 openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_port 5672
 openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_userid ${amqp_auth_user}
 openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_pass ${amqp_auth_pw}
-
 ### If SSL enabled on RabbitMQ
 # openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_use_ssl True
 # openstack-config --set /etc/neutron/neutron.conf DEFAULT kombu_ssl_certfile /path/to/client.crt
@@ -59,53 +105,100 @@ openstack-config --set /etc/neutron/neutron.conf DEFAULT rabbit_pass ${amqp_auth
 ### If Certs Signed by 3rd Party, also add this
 #openstack-config --set /etc/neutron/neutron.conf DEFAULT kombu_ssl_ca_certs /path/to/ca.crt
 
-# Configure more Neutron default settings
-openstack-config --set /etc/neutron/neutron.conf DEFAULT verbose True
-openstack-config --set /etc/neutron/neutron.conf DEFAULT debug False
-openstack-config --set /etc/neutron/neutron.conf DEFAULT use_syslog False
-openstack-config --set /etc/neutron/neutron.conf DEFAULT log_dir /var/log/neutron
-openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_host 0.0.0.0
-openstack-config --set /etc/neutron/neutron.conf DEFAULT bind_port 9696
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_url http://${nova_ip}:8774/v2
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_region_name RegionOne
 
-# Configure the neutron database connection
-openstack-config --set /etc/neutron/neutron.conf database connection mysql://neutron:${neutron_db_pw}@${mariadb_ip}/neutron
-openstack-config --set /etc/neutron/neutron.conf database max_retries 10
-openstack-config --set /etc/neutron/neutron.conf database retry_interval 10
-openstack-config --set /etc/neutron/neutron.conf database idle_timeout 3600
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_tenant_id $(keystone tenant-get services |grep id | awk '{print $4}')
 
-if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
-  echo "ERROR - /root/.my.cnf doesn't exist" 
-  exit 1
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_username nova
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_password ${nova_pw}
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT nova_admin_auth_url http://${keystone_ip}:35357/v2.0
+
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_status_changes  True
+openstack-config --set /etc/neutron/neutron.conf DEFAULT notify_nova_on_port_data_changes  True
+# Create services / agents
+service_plugins=""
+if [[ $use_neutron_l3 == "y" ]]; then
+  service_plugins="$service_plugins,router"
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT router_scheduler_driver neutron.scheduler.l3_agent_scheduler.ChanceScheduler
+  if [[ $l3_ha == "y" ]]; then
+    l3_ha_value="True"
+  else
+    l3_ha_value="False"
+  fi
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT l3_ha ${l3_ha_value}
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT min_l3_agents_per_router 2
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT max_l3_agents_per_router 2
+
 fi
-mysql -u root << EOF
-CREATE DATABASE neutron character set utf8;
-GRANT ALL ON neutron.* TO 'neutron'@'%' IDENTIFIED BY '${neutron_db_pw}';
-GRANT ALL ON neutron.* TO 'neutron'@'localhost' IDENTIFIED BY '${neutron_db_pw}';
-FLUSH PRIVILEGES;
-quit
-EOF
-
+if [[ $use_neutron_fwaas == "y" ]]; then
+  service_plugins="$service_plugins,firewall"
+  openstack-config --set /etc/neutron/fwaas_driver.ini fwaas enabled True
+  openstack-config --set /etc/neutron/fwaas_driver.ini fwaas driver neutron.services.firewall.drivers.linux.iptables_fwaas.IptablesFwaasDriver
+fi
+if [[ $use_neutron_lbaas == "y" ]]; then
+  service_plugins="$service_plugins,lbaas"
+  openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+  openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutron.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver
+  openstack-config --set /etc/neutron/lbaas_agent.ini haproxy user_group haproxy 
+fi
+if [[ $use_neutron_vpnaas == "y" ]]; then
+  service_plugins="$service_plugins,vpnaas"
+fi
+if [[ $use_neutron_metering == "y" ]]; then
+  service_plugins="$service_plugins,metering"
+fi
+if [[ $use_neutron_metadata == "y" ]]; then
+fi
+if [[ $use_neutron_dhcp == "y" ]]; then
+  # DHCP agents should equal number of neutron nodes
+  dhcp_agents=$(echo $neutron_nodes | wc -w)
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network ${dhcp_agents}
+fi
+service_plugins_final=$(echo $service_plugins | sed 's/^,//')
+openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins $service_plugins_final
 
 if [[ ${neutron_l2_plugin} == "ml2" ]] ; then
+  openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin  neutron.plugins.ml2.plugin.Ml2Plugin
 
-elif [[ ${neutron_l2_plugin} == "linuxbridge" ]] ; then
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini type_drivers ${neutron_ml2_type_drivers}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 tenant_network_types ${neutron_ml2_tenant_network_types}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2 mechanism_drivers ${neutron_ml2_mechanism_drivers}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_flat flat_networks ${neutron_ml2_network_flat_networks}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_gre tunnel_id_ranges ${neutron_ml2_gre_tunnel_id_ranges}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vni_ranges ${neutron_ml2_vxlan_vni_ranges}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini ml2_type_vxlan vxlan_group ${neutron_ml2_vxlan_group}
+  openstack-config --set /etc/neutron/plugins/ml2/ml2_conf.ini securitygroup enable_security_group True
 
-elif [[ ${neutron_l2_plugin} == "openvswitch" ]] ; then
-
+  ln -sf /etc/neutron/plugins/ml2/ml2_conf.ini /etc/neutron/plugin.ini
 else
-  echo "L2 plugin ${neutron_l2_plugin} not recognized. Exiting"
-  exit 1
+  echo "ERROR: No L2 plugin implemented except ML2"
+fi
+
+if [[ $(hostname -s) == $neutron_bootstrap_node ]]; then
+  # Populate the database - including L2 plugin 
+  neutron-db-manage --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugin.ini upgrade head
+
+  # Start/Stop Neutron Service
+  systemctl start neutron-server
+  systemctl stop neutron-server
 fi
 
 
 
+################ LEFT OFF HERE ##################
 
 
 
 
 
-  # Update the core plugin.  Probably also need the services plugin above
-  openstack-config --set /etc/neutron/neutron.conf DEFAULT core_plugin neutron.plugins.linuxbridge.lb_neutron_plugin.LinuxBridgePluginV2
+
+
+
+
+
 
 # Tunnel config -- Need to validate this as the example configures an OVS-BR0 bridge....  Note - This results in 2 instances sharing a layer 2 network
 # On each host create a virtual bridge

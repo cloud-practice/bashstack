@@ -131,6 +131,8 @@ mongo_bootstrap_node=controller1
 rabbit_bootstrap_node=controller1 
 keystone_bootstrap_node=controller1 
 glance_bootstrap_node=controller1 
+neutron_bootstrap_node=controller1 
+neutron_bind_nic="eth1"
 bootstrap_node=controller1
 ha_type=keepalived
 #ha_type=pacemaker
@@ -141,6 +143,7 @@ mariadb_hosts=
 use_galera=n
 amqp_servers=
 controller_hosts="controller1 controller2 controller3"
+neutron_nodes="controller1 controller2 controller3"
 rabbit_nodes="controller1 controller2 controller3"
 rabbit_bind_nic="eth1"
 keystone_admin_bind_nic="eth1"
@@ -235,32 +238,34 @@ glance_use_swift=
 # Include Gluster deployment in this tool???
 
 # Nova Network Configuration Options
-### ONLY IF NOT USING NEUTRON
 use_nova_network=n
-# build out this section for nova network....  
-
-
+# Legacy Nova Network is not implemented 
 
 # Neutron 
 use_neutron=y
-# Choose L2 plugin to deploy (ie ml2, openvswitch, linuxbridge, ...)
+# NOTE - Only ml2 L2 plugin is implemented...
 neutron_l2_plugin=ml2
-use_neutron_cisco=n
-use_lbaas=y
-use_vpnaas=y
-use_fwaas=y
+use_neutron_metadata=y
+use_neutron_dhcp=y
+use_neutron_l3=y
+use_neutron_metering=y
+use_neutron_lbaas=y
+use_neutron_vpnaas=y
+use_neutron_fwaas=y
 # Generate proxy_shared_secret: openssl rand -hex 10
 neutron_metadata_proxy_shared_secret: 50c1f9068adfbaf6907
-##### NEED TO DECIDE WHICH OF THESE VARIABLES TO KEEP....
-#neutron_ml2_type_drivers: vlan,vxlan
-#neutron_ml2_tenant_network_types: vxlan
-#neutron_ml2_network_vlan_ranges: "pnet1:100:200"
-#neutron_ml2_vni_ranges: 10:10000
-#neutron_vxlan_vni_ranges: 10:10000
-#neutron_vxlan_group: 239.1.1.1
-#neutron_ovs_tenant_network_type: vxlan
-#neutron_ovs_tunnel_type: vxlan
-#neutron_ovs_tunnel_id_ranges:
+#### NEED TO DECIDE WHICH OF THESE VARIABLES TO KEEP....
+neutron_ml2_type_drivers: local,flat,gre,vlan,vxlan
+neutron_ml2_tenant_network_types: vxlan
+# Note, only openvswitch mechanism driver implemented
+neutron_ml2_mechanism_drivers: openvswitch
+neutron_ml2_network_flat_networks: "*"
+neutron_ml2_network_vlan_ranges: "physnet1:100:200"
+neutron_ml2_gre_tunnel_id_ranges: 10:10000
+neutron_ml2_vxlan_vni_ranges: 10:10000
+neutron_ml2_vxlan_group: 224.0.0.1
+neutron_l3_ha=y
+
 #neutron_ovs_bridges: br-ex
 #neutron_ovs_bridge_ifaces: eth0
 #neutron_ovs_bridge_mappings: "pnet1:br-ex"

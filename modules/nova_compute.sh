@@ -24,7 +24,7 @@ if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=4789/udp --permanent
 elif  [[ $firewall == "iptables" ]] ; then
   iptables -I INPUT -p tcp -m multiport --dports 5900:5999 -m comment --comment "nova compute vnc incoming" -j ACCEPT
-  iptables -I INPUT -p tcp -m multiport --dports 4789 -m comment --comment "vxlan incoming" -j ACCEPT
+  iptables -I INPUT -p udp -m multiport --dports 4789 -m comment --comment "vxlan incoming" -j ACCEPT
   service iptables save; service iptables restart
 else
   echo "No firewall rules created as firewalld and iptables are inactive"
