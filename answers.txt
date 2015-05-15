@@ -44,7 +44,6 @@ ceilometer_pw=SECRET
 cinder_pw=SECRET
 glance_pw=SECRET
 heat_pw=SECRET
-heat_domain_pw=SECRET
 nagios_pw=SECRET
 neutron_pw=SECRET
 neutron_metadata_pw=SECRET  #### DO WE NEED THIS ONE??? I DIDN'T USE IT!
@@ -152,6 +151,14 @@ glance_backend="file"
 glance_backend_nfs_mount="server:/mount/point"
 keystone_nodes="controller1 controller2 controller3"
 mongo_nodes="controller1 controller2 controller3" 
+memcache_nodes="controller1 controller2 controller3"
+memcache_bootstrap_node="controller1"
+heat_nodes="controller1 controller2 controller3"
+heat_bootstrap_node="controller1"
+ceilometer_nodes="controller1 controller2 controller3"
+ceilometer_bootstrap_node="controller1"
+
+
 networker_hosts="controller1 controller2 controller3"
 haproxy_hosts="controller1 controller2 controller3"
 ### Pacemaker cluster

@@ -13,7 +13,9 @@ fi
 
 if [[ $ha == "y" ]]; then
   if [[ $ha_type == "pacemaker" ]] ; then
-     pcs resource create memcached systemd:memcached --clone
+    if [[ $(hostname -s) == $memcache_bootstrap_node ]]; then
+      pcs resource create memcached systemd:memcached --clone
+    fi
   fi
 fi 
 

@@ -13,7 +13,7 @@ fi
 
 
 # Install services
-yum -y install openstack-heat-api openstack-heat-api-cfn openstack-heat-common openstack-heat-engine openstack-heat-api-cloudwatch heat-cfntools python-heatclient openstack-utils
+yum -y install openstack-heat-api openstack-heat-api-cfn openstack-heat-common openstack-heat-engine openstack-heat-api-cloudwatch heat-cfntools python-heatclient openstack-utils python-openstackclient openstack-heat-templates
 
 # Configuring heat database
 if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
@@ -59,8 +59,7 @@ keystone endpoint-create --service heat --publicurl "${heat_ip_public}:8004/v1/%
 keystone role-create --name heat_stack_user
 
 # Create the identity domain for Orchestration
-yum -y install python-openstackclient
-ADMIN_TOKEN=$(cat /etc/keystone/keystone.conf | grep "^admin_token" | awk -F "=" '{print $2}')
+ADMIN_TOKEN=${keystone_admin_token}
 
 heat-keystone-setup-domain --stack-domain-admin ${stack_domain_admin} --stack-domain-admin-password ${stack_domain_admin_password} --stack-user-domain-name ${stack_user_domain}
 
@@ -70,12 +69,11 @@ openstack-config --set /etc/heat/heat.conf DEFAULT stack_user_domain ${stack_use
 
 # Configure Orchestration Service Authentication
 openstack-config --set /etc/heat/heat.conf database connection mysql://heat:${heat_db_pw}@${mariadb_ip}/heat
+openstack-config --set /etc/heat/heat.conf database database max_retries -1
 
-# Restrict the bind addresses for each API service
 openstack-config --set /etc/heat/heat.conf heat_api bind_host $(hostname -i)
 openstack-config --set /etc/heat/heat.conf heat_api_cfn bind_host $(hostname -i)
 openstack-config --set /etc/heat/heat.conf heat_api_cloudwatch bind_host $(hostname -i)
-
 
 openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_tenant_name services
 openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_user heat
@@ -83,6 +81,15 @@ openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_password ${h
 openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_host ${keystone_ip}
 openstack-config --set /etc/heat/heat.conf keystone_authtoken auth_uri http://${keystone_ip}:35357/v2.0
 openstack-config --set /etc/heat/heat.conf keystone_authtoken keystone_ec2_uri http://${keystone_ip}:35357/v2.0
+
+# Configure memcache nodes
+memcnodesarray=($memcache_nodes)
+for memcnode in "${memcnodesarray[@]}"
+do
+  memcstring="${memcstring}${memcnode}:11211,"
+done
+memcache_nodes_final=$(echo $memcstring | sed 's/,$//')
+openstack-config --set /etc/heat/heat.conf DEFAULT memcache_servers ${memcache_nodes_final}
 
 # Configure Heat-api-cfn / cloudwatch service hostnames
 openstack-config --set /etc/heat/heat.conf DEFAULT heat_metadata_server_url http://${heat_ip}:8000
@@ -94,11 +101,19 @@ openstack-config --set /etc/heat/heat.conf DEFAULT heat_stack_user_role heat_sta
 
 # Configure RabbitMQ Message Broker Settings for the Orchestration Service
 openstack-config --set /etc/heat/heat.conf DEFAULT rpc_backend heat.openstack.common.rpc.impl_kombu
-openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_host ${amqp_ip}
-openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_port 5672
-openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_userid ${amqp_auth_user}
-openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_pass ${amqp_auth_pw}
-#*********** RABBIT HA SETTINGS ***************
+if [[ $ha == y ]]; then
+  rabbit_nodes_cs=$(sed -e 's/ /,/g' ${rabbit_nodes})
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_hosts ${rabbit_nodes_cs}
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues True
+else
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_host ${amqp_ip}
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_port 5672
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues False
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_userid ${amqp_auth_user}
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_pass ${amqp_auth_pw}
+fi
+
+#*********** RABBIT SSL SETTINGS ***************
 ### If SSL enabled on RabbitMQ
 #openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_use_ssl True
 # openstack-config --set /etc/heat/heat.conf DEFAULT kombu_ssl_certfile /path/to/client.crt
@@ -106,27 +121,9 @@ openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_pass ${amqp_auth_pw}
 ### If Certs Signed by 3rd Party, also add this
 #openstack-config --set /etc/heat/heat.conf DEFAULT kombu_ssl_ca_certs /path/to/ca.crt
 
-# iptables rules for Heat
-iptables -I INPUT -p tcp -m multiport --dports 8000,8003,8004 -m comment --comment "heat incoming" -j ACCEPT
-service iptables save; service iptables restart
+if [[ $(hostname -s) == $heat_bootstrap_node ]]; then
+  su heat -s /bin/sh heat -c "heat-manage db_sync"
+fi
 
-su heat -s /bin/sh heat -c "heat-manage db_sync"
-
-# Launch the Orchestration Service
-systemctl enable openstack-heat-api
-systemctl enable openstack-heat-api-cfn
-systemctl enable openstack-heat-api-cloudwatch
-systemctl enable openstack-heat-engine
-systemctl start openstack-heat-api
-systemctl start openstack-heat-api-cfn
-systemctl start openstack-heat-api-cloudwatch
-systemctl start openstack-heat-engine
-
-# Deploy a Stack using orchestration templates
-yum -y install openstack-heat-templates
-
-### Need to write a few custom validations I think....  
-### NOTE - If we're using ceilometer metrics for cloudwatch, we'll want that done
-### prior to deploying heat!
 
 
