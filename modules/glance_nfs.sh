@@ -13,8 +13,15 @@ else
   source $ANSWERS
 fi
 
-# Create Glance file backed directories 
-mkdir -p /var/lib/glance/images
-chown glance:glance /var/lib/glance/images
+# Install nfs utils 
+yum -y install nfs-utils
 
+if [[ $ha == "y" ]] && [[ $ha_type == "keepalived" ]] ; then
+  # Mount NFS file system via fstab if it doesn't already exist
+  if [[ $(cat /etc/fstab | grep "/var/lib/glance" | wc -l) -eq 0 ]]; then
+    echo "$glance_backend_nfs_mount /var/lib/glance nfs _netdev 0 0" >> /etc/fstab
+    mount -a
+    chown glance:nobody /var/lib/glance
+  fi
+fi
 

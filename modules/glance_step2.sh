@@ -18,9 +18,19 @@ if [[ $ha == "y" ]]; then
       pcs resource create glance-api systemd:openstack-glance-api --clone
 
       if [[ $glance_backend == "nfs" ]] ; then
+        # Have pacemaker mount NFS 
+        pcs resource create glance-fs Filesystem device="${glance_backend_nfs_mount}" directory="/var/lib/glance"  fstype="nfs" options="v3" --clone
+
+        # wait for glance-fs to be started and running
+        sleep 5
+
+        # Make sure it's writable
+        chown glance:nobody /var/lib/glance  
+
         pcs constraint order start glance-fs-clone then glance-registry-clone
         pcs constraint colocation add glance-registry-clone with glance-fs-clone
       fi
+
       pcs constraint order start glance-registry-clone then glance-api-clone
       pcs constraint colocation add glance-api-clone with glance-registry-clone
       pcs constraint order start keystone-clone then glance-registry-clone

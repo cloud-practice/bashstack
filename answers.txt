@@ -149,6 +149,7 @@ glance_bind_nic="eth1"
 glance_nodes="controller1 controller2 controller3"
 # Glance_backend options: file, ceph, nfs, gluster, swift
 glance_backend="file"
+glance_backend_nfs_mount="server:/mount/point"
 keystone_nodes="controller1 controller2 controller3"
 mongo_nodes="controller1 controller2 controller3" 
 networker_hosts="controller1 controller2 controller3"

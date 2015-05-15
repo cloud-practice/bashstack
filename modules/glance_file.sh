@@ -19,4 +19,10 @@ chmod 770 /etc/glance
 mkdir -p /var/lib/glance/images
 chown glance:glance /var/lib/glance/images
 
-### Make certain no HA. (Active/Passive HA is possible ... )
+if [[ $ha == "y" ]]; then
+  echo "HA for file-backed glance is not supported by this tool"  
+  echo "Options include active/passive HA"
+  echo "Or rsync between all standalone glance file systems" 
+  echo "Or drbd"   
+  exit 1
+fi
