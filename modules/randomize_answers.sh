@@ -24,5 +24,7 @@ sed -i -e "s/^keystone_admin_token=.*/keystone_admin_token=$keystone_admin_token
 ceilometer_metering_secret=$(openssl rand -hex 10)
 sed -i -e "s/^ceilometer_metering_secret=.*/ceilometer_metering_secret=$ceilometer_metering_secret/" $ANSWERS
 
+neutron_metadata_proxy_shared_secret=$(openssl rand -hex 10)
+sed -i -e "s/^neutron_metadata_proxy_shared_secret=.*/neutron_metadata_proxy_shared_secret=$neutron_metadata_proxy_shared_secret/" $ANSWERS
 
 

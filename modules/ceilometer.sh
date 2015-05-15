@@ -70,13 +70,13 @@ openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers 
   openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rpc_backend ceilometer.openstack.common.rpc.impl_kombu
 if [[ $ha == y ]]; then
   rabbit_nodes_cs=$(sed -e 's/ /,/g' ${rabbit_nodes})
-  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_hosts ${rabbit_nodes_cs}
-  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues True
+  openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_hosts ${rabbit_nodes_cs}
+  openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_ha_queues True
 else
   openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_host ${amqp_ip}
-  openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_port 5672
-  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues False
+  openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_ha_queues False
 fi
+  openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_port 5672
   openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_userid ${amqp_auth_user}
   openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rabbit_pass ${amqp_auth_pw}
 

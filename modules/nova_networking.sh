@@ -11,4 +11,5 @@ else
   source $ANSWERS
 fi
 
+echo "Nova Networking is not supported by this tool..."
 exit 1
