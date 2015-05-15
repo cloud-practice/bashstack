@@ -116,36 +116,4 @@ if [[ $ha == "y" ]] ; then
   fi
 fi
 
-# Configure monitored for glance, cinder, swift
-yum -y install python-ceilometer python-ceilometerclient
-### Glance 
-openstack-config --set /etc/glance/glance-api.conf DEFAULT notifier_strategy rabbit
-#openstack-config --set /etc/glance/glance-api.conf DEFAULT notifier_strategy qpid
-### Cinder
-openstack-config --set /etc/cinder/cinder.conf DEFAULT notification_driver cinder.openstack.common.notifier.rpc_notifier
-openstack-config --set /etc/cinder/cinder.conf DEFAULT rpc_backend cinder.openstack.common.rpc.impl_qpid
-openstack-config --set /etc/cinder/cinder.conf DEFAULT control_exchange cinder
-### Swift 
-  # Add this to /etc/swift/proxy-server.conf
-[filter:ceilometer]
-use = egg:ceilometer#swift
-  # Add ceilometer to the pipeline in the same file
-[pipeline:main]
-pipeline = healthcheck cache authtoken keystoneauth proxy-server ceilometer
-### Neutron -> Probably need to install the python ceilomter packages on all too
-openstack-config --set /etc/neutron/neutron.conf \
-DEFAULT notification_driver neutron.openstack.common.notifier.rpc_notifier
-   ## Does neutron have a telemetry agent??  I thought it did now ... 
-
-# Start and Enable Ceilometer Services
-systemctl enable openstack-ceilometer-central
-systemctl enable openstack-ceilometer-collector
-systemctl enable openstack-ceilometer-api
-systemctl enable openstack-ceilometer-alarm-evaluator
-systemctl enable openstack-ceilometer-alarm-notifier
-systemctl start openstack-ceilometer-central
-systemctl start openstack-ceilometer-collector
-systemctl start openstack-ceilometer-api
-systemctl start openstack-ceilometer-alarm-evaluator
-systemctl start openstack-ceilometer-alarm-notifier
 
