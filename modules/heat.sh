@@ -107,11 +107,11 @@ if [[ $ha == y ]]; then
   openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues True
 else
   openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_host ${amqp_ip}
-  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_port 5672
   openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_ha_queues False
+fi
+  openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_port 5672
   openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_userid ${amqp_auth_user}
   openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_pass ${amqp_auth_pw}
-fi
 
 #*********** RABBIT SSL SETTINGS ***************
 ### If SSL enabled on RabbitMQ

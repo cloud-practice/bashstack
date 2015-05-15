@@ -81,6 +81,7 @@ nova_ip=172.16.0.198
 sahara_ip=172.16.0.198
 swift_ip=172.16.0.198
 trove_ip=172.16.0.198
+redis_ip=172.16.0.198
 ## Internal IPs
 ceilometer_ip_internal=${ceilometer_ip}
 cinder_ip_internal=${cinder_ip}
@@ -157,7 +158,10 @@ heat_nodes="controller1 controller2 controller3"
 heat_bootstrap_node="controller1"
 ceilometer_nodes="controller1 controller2 controller3"
 ceilometer_bootstrap_node="controller1"
-
+redis_nodes="controller1 controller2 controller3"
+redis_bootstrap_node="controller1"
+redis_bootstrap_ip="172.16.0.198"
+redis_bind_nic="eth1"
 
 networker_hosts="controller1 controller2 controller3"
 haproxy_hosts="controller1 controller2 controller3"
@@ -440,7 +444,8 @@ keystone_admin_token="02fe13a1db4009561d7a"
 #horizon_internal_servername: horizon.cloud.local
 #horizon_public_servername: cloud.local
 #### Ceilometer
-#ceilometer_metering_secret: SECRET   #### NOTE - Should get a way to auto-gen this
+# Generate ceilometer_metering_secret: openssl rand -hex 10
+ceilometer_metering_secret: SECRET   #### NOTE - Should get a way to auto-gen this
 ## keep last 5 days data only (value is in secs)
 #ceilometer_time_to_live: 432000
 #

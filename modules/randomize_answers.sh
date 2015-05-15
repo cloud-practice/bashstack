@@ -19,6 +19,10 @@ fi
 
 ## NEED TO DO PASSWORDS HERE
 keystone_admin_token=$(openssl rand -hex 10)
-sed -i -e "s/^keystone_admin_token=.*/keystone_admin_token=$keystone_admin_token=/" $ANSWERS
+sed -i -e "s/^keystone_admin_token=.*/keystone_admin_token=$keystone_admin_token/" $ANSWERS
+
+ceilometer_metering_secret=$(openssl rand -hex 10)
+sed -i -e "s/^ceilometer_metering_secret=.*/ceilometer_metering_secret=$ceilometer_metering_secret/" $ANSWERS
+
 
 
