@@ -18,7 +18,9 @@ if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
   echo "ERROR - /root/.my.cnf doesn't exist" 
   exit 1
 fi
-mysql -u root << EOF
+
+if [[ $(hostname -s) == $glance_bootstrap_node ]]; then
+  mysql -u root << EOF
 CREATE DATABASE glance;
 GRANT ALL ON glance.* TO 'glance'@'%' IDENTIFIED BY '${glance_db_pw}';
 GRANT ALL ON glance.* TO 'glance'@'localhost' IDENTIFIED BY '${glance_db_pw}';
@@ -26,14 +28,16 @@ FLUSH PRIVILEGES;
 quit
 EOF
 
-# Configure Glance to authenticate with Keystone
-source ~/keystonerc_admin
-keystone user-create --name glance --pass ${glance_pw}
-keystone user-role-add --user glance --role admin --tenant services
-keystone service-create --name glance --type image --description "Glance Image Service"
+  # Configure Glance to authenticate with Keystone
+  source ~/keystonerc_admin
+  keystone user-create --name glance --pass ${glance_pw}
+  keystone user-role-add --user glance --role admin --tenant services
+  keystone service-create --name glance --type image --description "Glance Image Service"
 
-keystone endpoint-create --service glance --publicurl "http://${glance_ip_public}:9292" --adminurl "http://${glance_ip_admin}:9292" --internalurl "http://${glance_ip_internal}:9292"
-## Add support for regions? 
+  keystone endpoint-create --service glance --publicurl "http://${glance_ip_public}:9292" --adminurl "http://${glance_ip_admin}:9292" --internalurl "http://${glance_ip_internal}:9292"
+  ## Add support for regions? 
+fi
+source ~/keystonerc_admin
 
 # Setup Glance Firewall Configuration
 if [[ $firewall == "firewalld" ]] ; then

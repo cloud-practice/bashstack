@@ -30,16 +30,18 @@ else
   echo "No firewall rules created as firewalld and iptables are inactive"
 fi
 
-# Create the Ceilometer records in keystone:
+if [[ $(hostname -s) == $ceilometer_bootstrap_node ]]; then
+  # Create the Ceilometer records in keystone:
+  source ~/keystonerc_admin
+  keystone user-create --name=ceilometer --pass=${ceilometer_pw}
+  keystone role-create --name=ResellerAdmin
+  keystone user-role-add --user ceilometer --role ResellerAdmin --tenant services --role ResellerAdmin
+  keystone user-role-add --user ceilometer --role admin --tenant services
+  keystone service-create --name=ceilometer --type=metering --description="OpenStack Telemetry Service"
+  keystone endpoint-create --service ceilometer --publicurl "${ceilometer_ip_public}:8777" --adminurl "${ceilometer_ip_admin}:8777" --internalurl "${ceilometer_ip_internal}:8777"
+  ### region support??? 
+fi
 source ~/keystonerc_admin
-keystone user-create --name=ceilometer --pass=${ceilometer_pw}
-keystone role-create --name=ResellerAdmin
-keystone user-role-add --user ceilometer --role ResellerAdmin --tenant services
---role ResellerAdmin
-keystone user-role-add --user ceilometer --role admin --tenant services
-keystone service-create --name=ceilometer --type=metering --description="OpenStack Telemetry Service"
-keystone endpoint-create --service ceilometer --publicurl "${ceilometer_ip_public}:8777" --adminurl "${ceilometer_ip_admin}:8777" --internalurl "${ceilometer_ip_internal}:8777"
-### region support??? 
 
 # Configure Telemetry Service Auth 
 openstack-config --set /etc/ceilometer/ceilometer.conf keystone_authtoken auth_host ${keystone_ip}

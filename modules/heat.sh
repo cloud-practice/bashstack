@@ -15,22 +15,7 @@ fi
 # Install services
 yum -y install openstack-heat-api openstack-heat-api-cfn openstack-heat-common openstack-heat-engine openstack-heat-api-cloudwatch heat-cfntools python-heatclient openstack-utils python-openstackclient openstack-heat-templates
 
-# Configuring heat database
-if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
-  echo "ERROR - /root/.my.cnf doesn't exist" 
-  exit 1
-fi
-mysql -u root << EOF
-CREATE DATABASE heat;
-GRANT ALL ON heat.* TO 'heat'@'%' IDENTIFIED BY '${heat_db_pw}';
-GRANT ALL ON heat.* TO 'heat'@'localhost' IDENTIFIED BY '${heat_db_pw}';
-FLUSH PRIVILEGES;
-quit
-EOF
-
-source /root/keystonerc_admin
-
-# iptables rules for Heat
+# Firewall rules for Heat
 if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=8000/tcp
   firewall-cmd --add-port=8000/tcp --permanent
@@ -45,23 +30,43 @@ else
   echo "No firewall rules created as firewalld and iptables are inactive"
 fi
 
+# Configuring heat database
+if [ ! -f /root/.my.cnf ] ; then    # Need password-less mysql access
+  echo "ERROR - /root/.my.cnf doesn't exist" 
+  exit 1
+fi
 
-# Create the Orchestration keystone records
-source ~/keystonerc_admin
-keystone user-create --name=heat --pass=SERVICE_PASSWORD
-keystone user-role-add --user heat --role admin --tenant services
-keystone service-create --name heat --type orchestration
-keystone service-create --name heat-cfn --type cloudformation
-keystone endpoint-create --service heat-cfn --publicurl "${heat_ip_public}:8000/v1" --adminurl "${heat_ip_admin}:8000/v1" --internalurl "${heat_ip_internal}:8000/v1"
-keystone endpoint-create --service heat --publicurl "${heat_ip_public}:8004/v1/%(tenant_id)s" --adminurl "${heat_ip_admin}:8004/v1/%(tenant_id)s" --internalurl "${heat_ip_internal}:8004/v1/%(tenant_id)s"
-  # Region support needed ?
+if [[ $(hostname -s) == $heat_bootstrap_node ]]; then
 
-keystone role-create --name heat_stack_user
+mysql -u root << EOF
+CREATE DATABASE heat;
+GRANT ALL ON heat.* TO 'heat'@'%' IDENTIFIED BY '${heat_db_pw}';
+GRANT ALL ON heat.* TO 'heat'@'localhost' IDENTIFIED BY '${heat_db_pw}';
+FLUSH PRIVILEGES;
+quit
+EOF
 
-# Create the identity domain for Orchestration
-ADMIN_TOKEN=${keystone_admin_token}
+source /root/keystonerc_admin
 
-heat-keystone-setup-domain --stack-domain-admin ${stack_domain_admin} --stack-domain-admin-password ${stack_domain_admin_password} --stack-user-domain-name ${stack_user_domain}
+  # Create the Orchestration keystone records
+  source ~/keystonerc_admin
+  keystone user-create --name=heat --pass=SERVICE_PASSWORD
+  keystone user-role-add --user heat --role admin --tenant services
+  keystone service-create --name heat --type orchestration
+  keystone service-create --name heat-cfn --type cloudformation
+  keystone endpoint-create --service heat-cfn --publicurl "${heat_ip_public}:8000/v1" --adminurl "${heat_ip_admin}:8000/v1" --internalurl "${heat_ip_internal}:8000/v1"
+  keystone endpoint-create --service heat --publicurl "${heat_ip_public}:8004/v1/%(tenant_id)s" --adminurl "${heat_ip_admin}:8004/v1/%(tenant_id)s" --internalurl "${heat_ip_internal}:8004/v1/%(tenant_id)s"
+    # Region support needed ?
+
+  keystone role-create --name heat_stack_user
+
+  # Create the identity domain for Orchestration
+  ADMIN_TOKEN=${keystone_admin_token}
+
+  heat-keystone-setup-domain --stack-domain-admin ${stack_domain_admin} --stack-domain-admin-password ${stack_domain_admin_password} --stack-user-domain-name ${stack_user_domain}
+fi
+
+source /root/keystonerc_admin
 
 openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin_password ${stack_domain_admin_password}
 openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin ${stack_domain_admin}
