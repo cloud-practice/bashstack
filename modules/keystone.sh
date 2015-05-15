@@ -76,7 +76,7 @@ openstack-config --set /etc/keystone/keystone.conf database max_retries -1
 openstack-config --set /etc/keystone/keystone.conf DEFAULT rpc_backend keystone.openstack.common.rpc.impl_kombu
 if [[ $ha == y ]]; then
   rabbit_nodes_cs=$(sed -e 's/ /,/g' ${rabbit_nodes})
-  openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts ${rabbit_nodes}
+  openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_hosts ${rabbit_nodes_cs}
   openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_ha_queues True
 else
   openstack-config --set /etc/keystone/keystone.conf DEFAULT rabbit_host ${amqp_ip}

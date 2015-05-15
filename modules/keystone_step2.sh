@@ -1,6 +1,6 @@
 #!/bin/bash
 ##########################################################################
-# Module:	keystone_activate
+# Module:	keystone_step2
 # Description:	This is run after keystone is installed on all servers to 
 #		get it running
 ##########################################################################

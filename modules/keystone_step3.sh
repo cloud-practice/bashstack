@@ -1,6 +1,6 @@
 #!/bin/bash
 ##########################################################################
-# Module:	keystone_config
+# Module:	keystone_step3
 # Description:	This configs endpoint, service, etc after install/activation
 ##########################################################################
 ANSWERS=/root/bashstack/answers.txt
