@@ -56,6 +56,16 @@ openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_us
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_tenant_name services
 openstack-config --set /etc/ceilometer/ceilometer.conf service_credentials os_password ${ceilometer_pw}
 
+# Configure memcache nodes
+memcnodesarray=($memcache_nodes)
+for memcnode in "${memcnodesarray[@]}"
+do
+  memcstring="${memcstring}${memcnode}:11211,"
+done
+memcache_nodes_final=$(echo $memcstring | sed 's/,$//')
+openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT memcache_servers ${memcache_nodes_final}
+
+
 # Configure Ceilometer AMQP 
   openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT rpc_backend ceilometer.openstack.common.rpc.impl_kombu
 if [[ $ha == y ]]; then
@@ -87,9 +97,17 @@ openstack-config --set /etc/ceilometer/ceilometer.conf DEFAULT os_password ${cei
 
 # Configure Telemetry DB Connection 
 if [[ $ha == "y" ]]; then
-  openstack-config --set /etc/ceilometer/ceilometer.conf database connection mongodb://localhost:27017/ceilometer?replicaSet=ceilometer
+  # Configure memcache nodes
+   mongonodesarray=($mongo_nodes)
+   for mongonode in "${mongonodesarray[@]}"
+   do
+      mongostring="${mongostring}${mongonode},"
+   done
+   mongo_nodes_final=$(echo $mongostring | sed 's/,$//')
+
+  openstack-config --set /etc/ceilometer/ceilometer.conf database connection mongodb://${mongo_nodes_final}:27017/ceilometer?replicaSet=ceilometer
 else
-  openstack-config --set /etc/ceilometer/ceilometer.conf database connection mongodb://localhost:27017/ceilometer
+  openstack-config --set /etc/ceilometer/ceilometer.conf database connection mongodb://${mongo_ip}:27017/ceilometer
 fi
 
 # Keep only the last 5 days data (value is in secs)
