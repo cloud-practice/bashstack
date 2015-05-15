@@ -32,14 +32,23 @@ In each /etc/sysconfig/network-scripts file add
 NM_CONTROLLED=no
 ONBOOT=yes
 
+# Setup appropriate firewall service
+if [[ $firewall == "firewalld" ]] ; then
+  yum -y install firewalld
+  systemctl enable firewalld
+  systemctl start firewalld
+elif [[ $firewall == "iptables" ]]; then 
 # Install iptables services 
-yum -y install iptables iptables-services
-
-# Disable firewalld and enable iptables
-systemctl stop firewalld 
-systemctl disable firewalld
-service iptables start
-chkconfig iptables on
+  yum -y install iptables iptables-services
+  
+  # Disable firewalld and enable iptables
+  systemctl stop firewalld 
+  systemctl disable firewalld
+  service iptables start
+  chkconfig iptables on
+else
+  echo "No firewall setup - firewalld or iptables not specified"
+fi
 
 # Setup and start NTP 
 yum -y install ntp

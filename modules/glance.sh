@@ -36,12 +36,12 @@ keystone endpoint-create --service glance --publicurl "http://${glance_ip_public
 ## Add support for regions? 
 
 # Setup Glance Firewall Configuration
-if [[ $(systemctl is-active firewalld) == "active" ]] ; then
+if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=9191/tcp
   firewall-cmd --add-port=9191/tcp --permanent
   firewall-cmd --add-port=9292/tcp
   firewall-cmd --add-port=9292/tcp --permanent
-elif  [[ $(systemctl is-active iptables) == "active" ]] ; then
+elif  [[ $firewall == "iptables" ]] ; then
   iptables -I INPUT -p tcp -m multiport --dports 9191 -m comment --comment "glance registry incoming" -j ACCEPT
   iptables -I INPUT -p tcp -m multiport --dports 9292 -m comment --comment "glance API incoming" -j ACCEPT
 service iptables save; service iptables restart

@@ -30,14 +30,21 @@ EOF
 
 source /root/keystonerc_admin
 
-openstack-config --set /etc/heat/heat.conf database connection mysql://heat:${heat_db_pw}@${mariadb_ip}/heat
+# iptables rules for Heat
+if [[ $firewall == "firewalld" ]] ; then
+  firewall-cmd --add-port=8000/tcp
+  firewall-cmd --add-port=8000/tcp --permanent
+  firewall-cmd --add-port=8003/tcp
+  firewall-cmd --add-port=8003/tcp --permanent
+  firewall-cmd --add-port=8004/tcp
+  firewall-cmd --add-port=8004/tcp --permanent
+elif  [[ $firewall == "iptables" ]] ; then
+  iptables -I INPUT -p tcp -m multiport --dports 8000,8003,8004 -m comment --comment "heat incoming" -j ACCEPT
+  service iptables save; service iptables restart
+else
+  echo "No firewall rules created as firewalld and iptables are inactive"
+fi
 
-runuser -s /bin/sh heat -c "heat-manage db_sync"
-
-# Restrict the bind addresses for each API service
-openstack-config --set /etc/heat/heat.conf heat_api bind_host $(hostname -i)
-openstack-config --set /etc/heat/heat.conf heat_api_cfn bind_host $(hostname -i)
-openstack-config --set /etc/heat/heat.conf heat_api_cloudwatch bind_host $(hostname -i)
 
 # Create the Orchestration keystone records
 source ~/keystonerc_admin
@@ -55,16 +62,21 @@ keystone role-create --name heat_stack_user
 yum -y install python-openstackclient
 ADMIN_TOKEN=$(cat /etc/keystone/keystone.conf | grep "^admin_token" | awk -F "=" '{print $2}')
 
-heat-keystone-setup-domain > /tmp/heatoutput.txt
-stack_user_domain=$(cat /tmp/heatoutput.txt | grep "stack_user_domain" | awk -F "=" '{print $2}')
-stack_domain_admin=$(cat /tmp/heatoutput.txt | grep "stack_domain_admin" | awk -F "=" '{print $2}')
-stack_domain_admin_password=$(cat /tmp/heatoutput.txt | grep "stack_domain_admin_password" | awk -F "=" '{print $2}')
+heat-keystone-setup-domain --stack-domain-admin ${stack_domain_admin} --stack-domain-admin-password ${stack_domain_admin_password} --stack-user-domain-name ${stack_user_domain}
 
 openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin_password ${stack_domain_admin_password}
 openstack-config --set /etc/heat/heat.conf DEFAULT stack_domain_admin ${stack_domain_admin}
 openstack-config --set /etc/heat/heat.conf DEFAULT stack_user_domain ${stack_user_domain}
 
 # Configure Orchestration Service Authentication
+openstack-config --set /etc/heat/heat.conf database connection mysql://heat:${heat_db_pw}@${mariadb_ip}/heat
+
+# Restrict the bind addresses for each API service
+openstack-config --set /etc/heat/heat.conf heat_api bind_host $(hostname -i)
+openstack-config --set /etc/heat/heat.conf heat_api_cfn bind_host $(hostname -i)
+openstack-config --set /etc/heat/heat.conf heat_api_cloudwatch bind_host $(hostname -i)
+
+
 openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_tenant_name services
 openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_user heat
 openstack-config --set /etc/heat/heat.conf keystone_authtoken admin_password ${heat_pw}
@@ -97,6 +109,8 @@ openstack-config --set /etc/heat/heat.conf DEFAULT rabbit_pass ${amqp_auth_pw}
 # iptables rules for Heat
 iptables -I INPUT -p tcp -m multiport --dports 8000,8003,8004 -m comment --comment "heat incoming" -j ACCEPT
 service iptables save; service iptables restart
+
+su heat -s /bin/sh heat -c "heat-manage db_sync"
 
 # Launch the Orchestration Service
 systemctl enable openstack-heat-api

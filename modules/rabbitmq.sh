@@ -16,7 +16,7 @@ else
 fi
 
 # Firewall rules for RabbitMQ:
-if [[ $(systemctl is-active firewalld) == "active" ]] ; then
+if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=5671/tcp
   firewall-cmd --add-port=5671/tcp --permanent
   firewall-cmd --add-port=5672/tcp
@@ -25,7 +25,7 @@ if [[ $(systemctl is-active firewalld) == "active" ]] ; then
   firewall-cmd --add-port=4369/tcp --permanent
   firewall-cmd --add-port=44001/tcp
   firewall-cmd --add-port=44001/tcp --permanent
-elif  [[ $(systemctl is-active iptables) == "active" ]] ; then
+elif  [[ $firewall == "iptables" ]] ; then
   iptables -I INPUT -p tcp -m multiport --dports 5671 -m comment --comment "amqp SSL incoming" -j ACCEPT
   iptables -I INPUT -p tcp -m multiport --dports 5672 -m comment --comment "amqp incoming" -j ACCEPT
   iptables -I INPUT -p tcp -m multiport --dports 4369 -m comment --comment "amqp epmd" -j ACCEPT

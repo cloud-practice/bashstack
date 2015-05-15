@@ -14,10 +14,10 @@ fi
 yum -y install memcached
 
 # Firewall rules for memcached
-if [[ $(systemctl is-active firewalld) == "active" ]] ; then
+if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=11211/tcp
   firewall-cmd --add-port=11211/tcp --permanent
-elif  [[ $(systemctl is-active iptables) == "active" ]] ; then
+elif  [[ $firewall == "iptables" ]] ; then
   iptables -I INPUT -p tcp -m multiport --dports 11211 -m comment --comment "memcached incoming" -j ACCEPT
   service iptables save; service iptables restart
 else

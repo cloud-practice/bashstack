@@ -15,10 +15,10 @@ fi
 yum -y install mongodb mongodb-server
 
 # Firewall rules for MongoDB:
-if [[ $(systemctl is-active firewalld) == "active" ]] ; then
+if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=27017/tcp
   firewall-cmd --add-port=27017/tcp --permanent
-elif  [[ $(systemctl is-active iptables) == "active" ]] ; then
+elif  [[ $firewall == "iptables" ]] ; then
   iptables -I INPUT -p tcp -m multiport --dports 27017-m comment --comment "MongoDB incoming" -j ACCEPT
   service iptables save; service iptables restart
 else

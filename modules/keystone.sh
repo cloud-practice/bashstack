@@ -17,12 +17,12 @@ fi
 yum install -y openstack-keystone openstack-utils openstack-selinux
 
 # Firewall rules for keystone
-if [[ $(systemctl is-active firewalld) == "active" ]] ; then
+if [[ $firewall == "firewalld" ]] ; then
   firewall-cmd --add-port=5000/tcp
   firewall-cmd --add-port=5000/tcp --permanent
   firewall-cmd --add-port=35357/tcp
   firewall-cmd --add-port=35357/tcp --permanent
-elif  [[ $(systemctl is-active iptables) == "active" ]] ; then
+elif  [[ $firewall == "iptables" ]] ; then
 iptables -I INPUT -p tcp -m multiport --dports 5000,35357 -m comment --comment "keystone incoming" -j ACCEPT
   service iptables save; service iptables restart
 else

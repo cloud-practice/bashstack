@@ -158,6 +158,12 @@ haproxy_hosts="controller1 controller2 controller3"
 pcs_cluster_name=rhelosp
 pcs_cluster_pw=SECRET
 ##pcs_cluster_pw_encoded=$1$azKoqr2X$NRnKMkeDSJIE2Kp7kGGUl/
+stack_domain_admin=heat_admin
+stack_domain_admin_password=SECRET
+stack_user_domain=heat
+firewall=iptables
+#firewall=firewalld # Prep for later transition
+
 ### Glance HA method? iscsi, nfs, etc ? 
 
 ### fence_cisco_ucs
