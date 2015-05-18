@@ -165,6 +165,10 @@ redis_nodes="controller1 controller2 controller3"
 redis_bootstrap_node="controller1"
 redis_bootstrap_ip="172.16.0.198"
 redis_bind_nic="eth1"
+cinder_nodes="controller1 controller2 controller3"
+cinder_bootstrap_node="controller1"
+cinder_bind_nic="eth1"
+
 
 
 
@@ -271,6 +275,9 @@ neutron_external_network_bridge=br-ex
 neutron_ovs_bridge_iface=eth0
 neutron_ovs_tunnel_iface=eth1
 neutron_ovs_bridge_mappings: "physnet1:br-ex"
+# Set MTU for instances lower if using vxlan
+neutron_dnsmasq_mtu="1400"
+#neutron_dnsmasq_mtu=""
 
 
 cisco_provider_vlan_auto_create=false
