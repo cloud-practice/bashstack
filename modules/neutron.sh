@@ -131,6 +131,13 @@ if [[ $use_neutron_l3 == "y" ]]; then
   openstack-config --set /etc/neutron/neutron.conf DEFAULT l3_ha ${l3_ha_value}
   openstack-config --set /etc/neutron/neutron.conf DEFAULT min_l3_agents_per_router 2
   openstack-config --set /etc/neutron/neutron.conf DEFAULT max_l3_agents_per_router 2
+  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT handle_internal_only_routers True
+  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT send_arp_for_ha 3
+  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT router_delete_namespaces False
+  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT metadata_ip ${nova_ip}
+  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge ${neutron_external_network_bridge}
+
 
 fi
 if [[ $use_neutron_fwaas == "y" ]]; then
@@ -139,6 +146,7 @@ if [[ $use_neutron_fwaas == "y" ]]; then
   openstack-config --set /etc/neutron/fwaas_driver.ini fwaas driver neutron.services.firewall.drivers.linux.iptables_fwaas.IptablesFwaasDriver
 fi
 if [[ $use_neutron_lbaas == "y" ]]; then
+  yum -y install haproxy
   service_plugins="$service_plugins,lbaas"
   openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
   openstack-config --set /etc/neutron/lbaas_agent.ini DEFAULT device_driver neutron.services.loadbalancer.drivers.haproxy.namespace_driver.HaproxyNSDriver
@@ -148,14 +156,34 @@ if [[ $use_neutron_vpnaas == "y" ]]; then
   service_plugins="$service_plugins,vpnaas"
 fi
 if [[ $use_neutron_metering == "y" ]]; then
+  yum -y install openstack-neutron-metering-agent
   service_plugins="$service_plugins,metering"
 fi
 if [[ $use_neutron_metadata == "y" ]]; then
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_strategy keystone
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_url http://${keystone_ip}:35357/v2.0
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_host ${keystone_ip}
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_region RegionOne
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_tenant_name services
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_user neutron
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_password ${neutron_pw}
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_ip ${nova_ip}
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT nova_metadata_port 8775
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_proxy_shared_secret ${neutron_metadata_proxy_shared_secret}
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_workers 4
+  openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT metadata_backlog 2048
 fi
 if [[ $use_neutron_dhcp == "y" ]]; then
   # DHCP agents should equal number of neutron nodes
   dhcp_agents=$(echo $neutron_nodes | wc -w)
   openstack-config --set /etc/neutron/neutron.conf DEFAULT dhcp_agents_per_network ${dhcp_agents}
+  openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
+  openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT dhcp_delete_namespaces False
+  if [[ $neutron_dnsmasq_mtu != "" ]]; then
+    echo "dhcp-option-force=26,${neutron_dnsmasq_mtu}" > /etc/neutron/dnsmasq-neutron.conf
+    chown root:neutron /etc/neutron/dnsmasq-neutron.conf
+    chmod 644 /etc/neutron/dnsmasq-neutron.conf
+  fi
 fi
 service_plugins_final=$(echo $service_plugins | sed 's/^,//')
 openstack-config --set /etc/neutron/neutron.conf DEFAULT service_plugins $service_plugins_final
@@ -187,134 +215,39 @@ if [[ $(hostname -s) == $neutron_bootstrap_node ]]; then
 fi
 
 
+# Setup openvswitch agent
+yum -y install openstack-neutron openstack-neutron-openvswitch openvswitch
+systemctl enable openvswitch
+systemctl start openvswitch
 
-################ LEFT OFF HERE ##################
+ovs-vsctl add-br br-int
+ovs-vsctl add-br ${neutron_external_network_bridge}
 
+ovs-vsctl add-port ${neutron_external_network_bridge} ${neutron_ovs_bridge_iface}
 
+### ADD STEPS TO MOVE IP ADDRESS TO BRIDGE HERE...
 
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent tunnel_types ${neutron_agent_tunnel_types}
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent vxlan_udp_port 4789
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs local_ip  $(ip addr show dev ${neutron_ovs_tunnel_iface} scope global | grep dynamic| sed -e 's#.*inet ##g' -e 's#/.*##g')
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs integration_bridge br-int
+if [[ $(echo ${neutron_ml2_type_drivers} | egrep -i "gre|vxlan" | wc -l) -gt 0 ]]; then
+  openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs enable_tunneling True
+  openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs tunnel_bridge br-tun
+fi
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini ovs bridge_mappings ${neutron_ovs_bridge_mappings}
+openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini securitygroup firewall_driver neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver
 
-
-
-
-
-
-
-
-# Tunnel config -- Need to validate this as the example configures an OVS-BR0 bridge....  Note - This results in 2 instances sharing a layer 2 network
-# On each host create a virtual bridge
-ovs-vsctl add-br OVS-BR0
-
-# GRE Example to link hosts
-  # From Host 1:
-  ovs-vsctl add-port OVS-BR0 gre1 -- set Interface gre1 type=gre options:remote_ip=192.168.1.11
-  # From Host 2: 
-  ovs-vsctl add-port OVS-BR0 gre1 -- set Interface gre1 type=gre options:remote_ip=192.168.1.10
-
-# VxLAN Example to link hosts
-ovs-vsctl add-port OVS-BR0 vxlan1 -- set Interface vxlan1 type=vxlan options:remote_ip=192.168.1.11
-ovs-vsctl add-port OVS-BR0 vxlan1 -- set Interface vxlan1 type=vxlan options:remote_ip=192.168.1.10
-
-
-
-
-# Populate the database - including L2 plugin 
-neutron-db-manage --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf --config-file /etc/neutron/plugin.ini upgrade head
-
-# Start/Enable Neutron Service
-systemctl start neutron-server
-systemctl enable neutron-server
-
-# Configure the DHCP Agent 
-# Configure the interface driver
-  # If OVS
-  openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
-  # If Linux Bridge
-  openstack-config --set /etc/neutron/dhcp_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.BridgeInterfaceDriver
-
-  # Start the DHCP Agent 
-  systemctl enable neutron-dhcp-agent
-  systemctl start neutron-dhcp-agent
-
-# Connecting an external provider network:
-#source ~/keystonerc_admin
-#neutron net-create EXTERNAL_NAME --router:external True --provider:network_type TYPE --provider:physical_network PHYSNET --provider:segmentation_id VLAN_TAG
-#neutron subnet-create --gateway GATEWAY --allocation-pool start=IP_RANGE_START,end=IP_RANGE_END --disable-dhcp EXTERNAL_NAME EXTERNAL_CIDR
-#neutron router-create NAME
-#neutron router-gateway-set ROUTER NETWORK
-#neutron router-interface-add ROUTER SUBNET
-# Configuring the Plug-in Agent 
-  # If Open vSwitch
-  # verify packages installed
-  yum -y install openvswitch openstack-neutron-openvswitch
-  systemctl start openvswitch
-  systemctl enable openvswitch
-  # Create integration bridge
-  ovs-vsctl add-br br-int
-  # Add bridge mappings within the network_vlan_ranges  (PHYSNET:BRIDGE)
-  openstack-config --set /etc/neutron/plugin.ini OVS bridge_mappings MAPPINGS
-
-  # Start and Enable Agents 
-  systemctl start neutron-openvswitch-agent
-  systemctl enable neutron-openvswitch-agent
-  systemctl enable neutron-ovs-cleanup
-
-  # If Linux Bridge
-  yum -y install openstack-neutron-linuxbridge
-  # Add bridge mappings within the network_vlan_ranges  (PHYSNET:BRIDGE)
-  openstack-config --set /etc/neutron/plugin.ini LINUX_BRIDGE physical_interface_mappings MAPPINGS
-  systemctl enable neutron-linuxbridge-agent
-  systemctl start neutron-linuxbridge-agent
-
-# Configure the Metadata Agent
-openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT auth_host ${keystone_ip}
-openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_url http://${keystone_ip}:35357/v2.0
-openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_tenant_name services
-openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_user neutron
-openstack-config --set /etc/neutron/metadata_agent.ini DEFAULT admin_password ${neutron_pw}
-#### Set nova_metadata_ip or nova_metadata_port???  Packstack seems to...
-### Update 'metadata_workers'?  This is set to 0 in packstack install 
-
-# Configure the L3 Agent
-  # Configure interface driver for L3
-  # Open vSwitch
-  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.OVSInterfaceDriver
-  # Linux Bridge
-  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT interface_driver neutron.agent.linux.interface.BridgeInterfaceDriver
-
-  # Configure external network access
-  ovs-vsctl add-br br-ex
-  /etc/sysconfig/network-scripts/ifcfg-br-ex
-DEVICE=br-ex
-DEVICETYPE=ovs
-TYPE=OVSBridge
-ONBOOT=yes
-BOOTPROTO=none
-
-  openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge br-ex
-  # Or if using a provider network: 
-  #openstack-config --set /etc/neutron/l3_agent.ini DEFAULT external_network_bridge ""
-
-# Start the L3 agent 
-systemctl enable neutron-l3-agent
-systemctl start neutron-l3-agent
-
-# Start the Metadata Agent 
-systemctl enable neutron-metadata-agent
-systemctl start neutron-metadata-agent
-
-### Least router scheduler -- rescheduling routers?? 
-# neutron.conf: router_scheduler_driver=neutron.scheduler.l3_agent_scheduler.LeastRoutersScheduler
-#neutron l3-agent-router-remove [l3 node] [router]
-#neutron l3-agent-router-add [l3 node] [router]
-
-# Validation 
-openstack-status | grep neutron-server
-openstack-status | egrep "neutron-openvswitch-agent|neutron-linuxbridge-agent|neutron-metadata-agent|neutron-dhcp-agent|neutron-l3-agent"
-
-### NEED MORE VALIDATION OF NETWORKING THAN THIS! 
+if [[ ${neutron_l2_population} == "y" ]] && [[ ${neutron_l3_ha} == "n" ]]; then
+  openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population True
+else
+  openstack-config --set /etc/neutron/plugins/openvswitch/ovs_neutron_plugin.ini agent l2_population False
+fi
 
 
-## WHERE IS THE openstack-neutron-metering-agent????
+
+
+
 
 
 

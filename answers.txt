@@ -254,9 +254,9 @@ use_neutron_vpnaas=y
 use_neutron_fwaas=y
 # Generate proxy_shared_secret: openssl rand -hex 10
 neutron_metadata_proxy_shared_secret: 50c1f9068adfbaf6907
-#### NEED TO DECIDE WHICH OF THESE VARIABLES TO KEEP....
 neutron_ml2_type_drivers: local,flat,gre,vlan,vxlan
 neutron_ml2_tenant_network_types: vxlan
+neutron_agent_tunnel_types: vxlan
 # Note, only openvswitch mechanism driver implemented
 neutron_ml2_mechanism_drivers: openvswitch
 neutron_ml2_network_flat_networks: "*"
@@ -265,16 +265,12 @@ neutron_ml2_gre_tunnel_id_ranges: 10:10000
 neutron_ml2_vxlan_vni_ranges: 10:10000
 neutron_ml2_vxlan_group: 224.0.0.1
 neutron_l3_ha=y
-
-#neutron_ovs_bridges: br-ex
-#neutron_ovs_bridge_ifaces: eth0
-#neutron_ovs_bridge_mappings: "pnet1:br-ex"
-#neutron_agent_tunnel_types: vxlan
-#neutron_external_network_bridge: br-ex
-
-
-
-
+# L2 pop not compatible with L3 HA
+neutron_l2_population=n
+neutron_external_network_bridge=br-ex
+neutron_ovs_bridge_iface=eth0
+neutron_ovs_tunnel_iface=eth1
+neutron_ovs_bridge_mappings: "physnet1:br-ex"
 
 
 cisco_provider_vlan_auto_create=false
